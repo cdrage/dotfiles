@@ -8,6 +8,7 @@ set nocompatible
 filetype plugin indent off
 syntax off
 
+
 " set the runtime path for vundle
 set rtp+=~/.vim/bundle/Vundle.vim
 
@@ -22,17 +23,7 @@ Plugin 'gmarik/Vundle.vim'
 " to update the plugins run :PluginInstall! or :PluginUpdate
 " to delete a plugin remove it here and run :PluginClean
 " 
-
-" YOUR LIST OF PLUGINS GOES HERE LIKE THIS:
-Plugin 'bling/vim-airline'
-
-" add plugins before this
-call vundle#end()
-
-" now (after vundle finished) it is save to turn filetype plugins on
-filetype plugin indent on
-syntax on
-
+"
 " Import all the bundles
 Bundle 'gmarik/vundle'
 Bundle 'vim-multiple-cursors'
@@ -43,6 +34,14 @@ Bundle 'ctrlp.vim'
 Bundle 'scrooloose/syntastic.git'
 Bundle 'vim-ruby/vim-ruby'
 Bundle 'fatih/vim-go'
+
+" add plugins before this
+call vundle#end()
+
+" now (after vundle finished) it is save to turn filetype plugins on
+filetype plugin indent on
+syntax on
+
 
 filetype plugin indent on
 

@@ -1,8 +1,6 @@
 #!/bin/bash
 
-[ -n "$TMUX" ] && export TERM=screen-256color
 export PATH="/usr/lib/lightdm/lightdm:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games"
-export TERM=xterm-256color
 export EDITOR=/usr/bin/vim
 export GOPATH=~/go
 export PATH=$PATH:$GOPATH/bin
@@ -10,7 +8,7 @@ export GOPATH=$HOME
 
 # hidpi for gtk apps
 export GDK_SCALE=2
-export GDK_DPI_SCALE=0.5
+export GDK_DPI_SCALE=1
 export QT_DEVICE_PIXEL_RATIO=2
 
 # utf-8
@@ -24,3 +22,9 @@ export HISTFILESIZE=$HISTSIZE
 export HISTCONTROL=ignoredups
 export HISTIGNORE="ls:cd:cd -:pwd:exit:date:* --help"
 
+[[ $TMUX = "" ]] && export TERM="xterm-256color"
+
+# go 
+export GOPATH=$HOME/.go
+export GOBIN=$GOPATH/bin
+export PATH=/usr/local/bin:/usr/local/go/bin:$PATH:$GOPATH/bin:/sbin
