@@ -1,13 +1,10 @@
 #!/bin/bash
-# bash wrappers for docker run commands
 
-# 
-# Helper Functions
-#
 dcleanup(){
   docker rm $(docker ps --filter status=exited -q 2>/dev/null) 2>/dev/null
   docker rmi $(docker images --filter dangling=true -q 2>/dev/null) 2>/dev/null
 }
+
 del_stopped(){
   local name=$1
   local state=$(docker inspect --format "{{.State.Running}}" $name 2>/dev/null)
@@ -30,7 +27,6 @@ relies_on(){
   done
 }
 
-
 # Functions
 
 mutt(){
@@ -44,3 +40,21 @@ mutt(){
     -v /etc/localtime:/etc/localtime:ro \
     charliedrage/mutt
 }
+
+weechat(){
+  CONTAINER=weechat
+  RUNNING=$(docker inspect --format="{{ .State.Running }}" $CONTAINER 2> /dev/null) 
+
+  if [ $RUNNING ] ; then
+    docker attach weechat
+  else
+    docker run -it -d \
+      -v /home/wikus/.weechat:/root/.weechat \
+      -v /etc/localtime:/etc/localtime:ro \
+      --name weechat \
+      charliedrage/weechat
+    docker attach weechat
+  fi
+
+}
+
