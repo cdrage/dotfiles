@@ -49,7 +49,7 @@ weechat(){
     docker attach weechat
   else
     docker run -it -d \
-      -v /home/wikus/.weechat:/root/.weechat \
+      -v ~/.weechat:/root/.weechat \
       -v /etc/localtime:/etc/localtime:ro \
       --name weechat \
       charliedrage/weechat

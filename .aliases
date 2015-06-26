@@ -57,6 +57,9 @@ alias hosts='sudo vim /etc/hosts'
 # untar
 alias untar='tar xvf'
 
-alias todo='bash ~/Dropbox/bin/todo/todo.sh'
+alias todo='bash ~/dropbox/bin/todo/todo.sh'
 alias ta='tmux attach'
-alias jrl='bash ~/Dropbox/bin/journal.sh'
+alias jrl='bash ~/dropbox/bin/journal.sh'
+
+# screw typing docker each time. d all the way
+alias d='docker'

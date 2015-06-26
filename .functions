@@ -1,0 +1,24 @@
+#!/bin/bash
+
+twitch() {
+  local result=$1
+  livestreamer twitch.tv/$1 high
+}
+
+peerflix() {
+  local url=$1
+  peerflix --vlc "$1"
+}
+
+digga() {
+  dig +nocmd "$1" any +multiline +noall +answer
+}
+
+isup() {
+  local uri=$1
+  if curl -s --head --request GET "$uri" | grep "200 OK" > /dev/null ; then
+    notify-send --urgency=critical "$uri is down"
+  else
+    notify-send --urgency=low "$uri is up"
+  fi
+}
