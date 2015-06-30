@@ -45,7 +45,7 @@ weechat(){
   CONTAINER=weechat
   RUNNING=$(docker inspect --format="{{ .State.Running }}" $CONTAINER 2> /dev/null) 
 
-  if [ $RUNNING ] ; then
+  if [[ $RUNNING ]] ; then
     docker attach weechat
   else
     docker run -it -d \
@@ -55,6 +55,5 @@ weechat(){
       charliedrage/weechat
     docker attach weechat
   fi
-
 }
 
