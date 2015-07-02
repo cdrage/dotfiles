@@ -31,15 +31,18 @@ relies_on(){
 
 mutt(){
   docker run -it --rm \
+    -e TERM=xterm-256color \
     -e MUTT \
     -e MUTT_NAME \
     -e MUTT_PASS \
     -e MUTT_FROM \
     -e MUTT_SMTP \
     -e MUTT_IMAP \
+    -v $HOME/.gnupg:/home/user/.gnupg \
     -v /etc/localtime:/etc/localtime:ro \
     charliedrage/mutt
 }
+
 
 weechat(){
   CONTAINER=weechat
@@ -49,7 +52,8 @@ weechat(){
     docker attach weechat
   else
     docker run -it -d \
-      -v ~/.weechat:/root/.weechat \
+      -e TERM=xterm-256color \
+      -v $HOME/.weechat:/root/.weechat \
       -v /etc/localtime:/etc/localtime:ro \
       --name weechat \
       charliedrage/weechat
