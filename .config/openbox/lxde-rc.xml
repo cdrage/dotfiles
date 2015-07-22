@@ -117,7 +117,7 @@
 
        use obconf if you want to change these without having to log out
        and back in -->
-    <number>2</number>
+    <number>4</number>
     <firstdesk>1</firstdesk>
     <names>
       <!-- set names up here if you want to, like this:
@@ -176,7 +176,7 @@
   <keyboard>
     <chainQuitKey>C-g</chainQuitKey>
     <!-- Keybindings for desktop switching -->
-    <keybind key="C-A-Left">
+    <!--<keybind key="C-A-Left">
       <action name="DesktopLeft">
         <dialog>no</dialog>
         <wrap>no</wrap>
@@ -199,47 +199,47 @@
         <dialog>no</dialog>
         <wrap>no</wrap>
       </action>
-    </keybind>
-    <keybind key="S-A-Left">
+    </keybind>-->
+    <keybind key="C-A-Left">
       <action name="SendToDesktopLeft">
         <dialog>no</dialog>
         <wrap>no</wrap>
       </action>
     </keybind>
-    <keybind key="S-A-Right">
+    <keybind key="C-A-Right">
       <action name="SendToDesktopRight">
         <dialog>no</dialog>
         <wrap>no</wrap>
       </action>
     </keybind>
-    <keybind key="S-A-Up">
+    <keybind key="C-A-Up">
       <action name="SendToDesktopUp">
         <dialog>no</dialog>
         <wrap>no</wrap>
       </action>
     </keybind>
-    <keybind key="S-A-Down">
+    <keybind key="C-A-Down">
       <action name="SendToDesktopDown">
         <dialog>no</dialog>
         <wrap>no</wrap>
       </action>
     </keybind>
-    <keybind key="W-F1">
+    <keybind key="C-1">
       <action name="Desktop">
         <desktop>1</desktop>
       </action>
     </keybind>
-    <keybind key="W-F2">
+    <keybind key="C-2">
       <action name="Desktop">
         <desktop>2</desktop>
       </action>
     </keybind>
-    <keybind key="W-F3">
+    <keybind key="C-3">
       <action name="Desktop">
         <desktop>3</desktop>
       </action>
     </keybind>
-    <keybind key="W-F4">
+    <keybind key="C-4">
       <action name="Desktop">
         <desktop>4</desktop>
       </action>
@@ -252,6 +252,11 @@
     </keybind>
     <!-- Keybindings for windows -->
     <keybind key="A-F4">
+    <keybind key="C-A-T">
+      <action name="Execute">
+        <command>terminator</command>
+      </action>
+    </keybind>
       <action name="Close"/>
     </keybind>
     <keybind key="A-Escape">
@@ -317,6 +322,21 @@
         <command>lxtask</command>
       </action>
     </keybind>
+    <keybind key="C-A-W">
+      <action name="Execute">
+        <command>iceweasel</command>
+      </action>
+    </keybind>
+    <keybind key="C-A-T">
+      <action name="Execute">
+        <command>terminator</command>
+      </action>
+    </keybind>
+    <keybind key="C-A-L">
+      <action name="Execute">
+        <command>pcmanfm</command>
+      </action>
+    </keybind>
     <!-- Launch gnome-screenshot when PrintScreen is pressed -->
     <keybind key="Print">
       <action name="Execute">
@@ -324,6 +344,16 @@
       </action>
     </keybind>
     <!-- Launch LXRandR when Fn+Screen is pressed -->
+<keybind key="XF86MonBrightnessUp">
+       <action name="Execute">
+         <command>xbacklight +10</command>
+       </action>
+     </keybind>
+     <keybind key="XF86MonBrightnessDown">
+       <action name="Execute">
+         <command>xbacklight -10</command>
+       </action>
+    </keybind>
     <keybind key="XF86Display">
       <action name="Execute">
         <command>lxrandr</command>
@@ -337,6 +367,12 @@
 <keybind key="XF86AudioLowerVolume">
   <action name="Execute">
     <command>pactl -- set-sink-volume 1 -5%</command>
+  </action>
+</keybind>
+
+<keybind key="XF86AudioMute">
+  <action name="Execute">
+    <command>pactl -- set-sink-mute 1 toggle</command>
   </action>
 </keybind>
 
