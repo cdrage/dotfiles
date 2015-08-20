@@ -5,14 +5,6 @@ dcleanup(){
   docker rmi $(docker images --filter dangling=true -q 2>/dev/null) 2>/dev/null
 }
 
-del_stopped(){
-  local name=$1
-  local state=$(docker inspect --format "{{.State.Running}}" $name 2>/dev/null)
-
-  if [[ "$state" == "false" ]]; then
-    docker rm $name
-  fi
-}
 
 relies_on(){
   local containers=$@
@@ -25,6 +17,14 @@ relies_on(){
       $container
     fi
   done
+}
+
+del_stopped(){
+  local name=$1
+  local state=$(docker inspect --format "{{.State.Running}}" $name 2>/dev/null)
+  if [[ "$state" == "false" ]]; then
+  docker rm $name
+  fi
 }
 
 # Functions
@@ -45,19 +45,13 @@ mutt(){
 
 
 weechat(){
-  CONTAINER=weechat
-  RUNNING=$(docker inspect --format="{{ .State.Running }}" $CONTAINER 2> /dev/null) 
-
-  if [[ $RUNNING ]] ; then
-    docker attach weechat
-  else
-    docker run -it -d \
-      -e TERM=xterm-256color \
-      -v $HOME/.weechat:/root/.weechat \
-      -v /etc/localtime:/etc/localtime:ro \
-      --name weechat \
-      charliedrage/weechat
-    docker attach weechat
-  fi
+  docker run -it -d \
+    -e TERM=xterm-256color \
+    -v $HOME/.weechat:/root/.weechat \
+    -v /etc/localtime:/etc/localtime:ro \
+    --name weechat \
+    charliedrage/weechat
+  docker attach weechat
 }
+
 

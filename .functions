@@ -5,9 +5,9 @@ twitch() {
   livestreamer twitch.tv/$1 high
 }
 
-peerflix() {
+stream() {
   local url=$1
-  peerflix --vlc "$1"
+  peerflix $1 --vlc
 }
 
 digga() {
