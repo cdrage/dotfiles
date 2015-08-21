@@ -34,6 +34,9 @@ Bundle 'ctrlp.vim'
 Bundle 'scrooloose/syntastic.git'
 Bundle 'vim-ruby/vim-ruby'
 Bundle 'fatih/vim-go'
+Bundle 'xolox/vim-notes'
+Bundle 'xolox/vim-misc'
+Bundle 'ekalinin/Dockerfile.vim'
 
 " add plugins before this
 call vundle#end()
@@ -107,3 +110,6 @@ endif
 set encoding=utf-8
 filetype plugin on
 set omnifunc=syntaxcomplete#Complete
+
+:let g:notes_directories = ['~/dropbox/txt']
+syntax on
