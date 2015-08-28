@@ -20,8 +20,8 @@ relies_on(){
 }
 
 del_stopped(){
-  local name=$1
-  local state=$(docker inspect --format "{{.State.Running}}" $name 2>/dev/null)
+  name=$1
+  state=$(docker inspect --format "{{.State.Running}}" $name 2>/dev/null)
   if [[ "$state" == "false" ]]; then
   docker rm $name
   fi
@@ -39,6 +39,9 @@ mutt(){
     -e MUTT_SMTP \
     -e MUTT_IMAP \
     -v $HOME/.gnupg:/home/user/.gnupg \
+    -v $HOME/docker_files/mutt_files/:/home/user/files \
+    -v $HOME/docker_files/mutt_downloads/:/home/user/downloads \
+    -v $HOME/dropbox/etc/aliases.txt:/home/user/.mutt/aliases.txt \
     -v /etc/localtime:/etc/localtime:ro \
     charliedrage/mutt
 }
@@ -54,4 +57,10 @@ weechat(){
   docker attach weechat
 }
 
+glances(){
+  docker run --rm -it -e TERM=xterm-256color --pid=host --ipc=host --net=host --privileged charliedrage/glances
+}
 
+jrl(){
+  docker run -it --rm -v $HOME/dropbox/txt/txt.aes:/txt.aes jrl
+}
