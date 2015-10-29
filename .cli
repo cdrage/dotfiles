@@ -1,18 +1,10 @@
 #!/bin/bash
 
 # 
-# PATH
-#
-
-# 
 # EXPORTS
 #
 
-export PATH="/usr/lib/lightdm/lightdm:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games"
-export EDITOR=/usr/bin/vim
-export GOPATH=~/go
-export PATH=$PATH:$GOPATH/bin
-export GOPATH=$HOME
+export EDITOR=vim
 
 # hidpi for gtk apps
 export GDK_SCALE=2
@@ -20,7 +12,6 @@ export GDK_DPI_SCALE=1
 export QT_DEVICE_PIXEL_RATIO=2
 
 # utf-8
-# Prefer US English and use UTF-8
 export LANG="en_US.UTF-8"
 export LC_ALL="en_US.UTF-8"
 
@@ -30,12 +21,13 @@ export HISTFILESIZE=$HISTSIZE
 export HISTCONTROL=ignoredups
 export HISTIGNORE="ls:cd:cd -:pwd:exit:date:* --help"
 
+# tmux
 [[ $TMUX = "" ]] && export TERM="xterm-256color"
 
 # go 
 export GOPATH=$HOME/.go
 export GOBIN=$GOPATH/bin
-export PATH=/usr/local/bin:/usr/local/go/bin:$PATH:$GOPATH/bin:/sbin
+export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 
 #
 # ALIASES
@@ -61,7 +53,7 @@ alias dl="cd ~/Downloads"
 alias g="git"
 alias h="history"
 alias d='docker'
-alias ta='tmux attach'
+alias ta='tmux attach -t'
 alias t='tmux'
 alias tl='tmux list-sessions'
 
@@ -127,6 +119,16 @@ isup() {
   fi
 }
 
+# Git shit
+
+git-combine-commit() {
+  git add . && git commit -m 'update' && git reset --soft HEAD~2 && git commit -m "$1"
+}
+
+git-pull-request() {
+  hub pull-request -b $1 -h $GITHUB_USER/$2 
+}
+
 #
 # DOCKER FUNCTIONS
 #
@@ -158,8 +160,6 @@ del_stopped(){
   docker rm $name
   fi
 }
-
-# Functions
 
 mutt(){
   docker run -it --rm \
