@@ -3,7 +3,8 @@
 USERNAME=$USER
 
 prelim_packages_install() {
-  sudo apt-get install -y fortune lolcat mosh
+  sudo apt-get update
+  sudo apt-get install -y fortune lolcat mosh golang
 }
 
 setup_sudo() { 
@@ -55,6 +56,8 @@ dotfiles_backup() {
 
 docker_install() {
   curl -sSl https://get.docker.com | sh
+  sudo sed -i.bak 's/GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"/g' /etc/default/grub
+  sudo update-grub
   sudo usermod -aG docker $USERNAME
   echo "LOG OUT, LOG IN TO CONTINUE!"
 }
@@ -71,3 +74,10 @@ dropbox_install() {
   docker logs dropbox
   echo "!!!!! Make sure you click the above link ^^ !!!!!"
 }
+
+install_golang() {
+  export GO_VERSION=1.5.1
+  export GO_SRC=/usr/local/go
+  (curl -sSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | sudo tar -v -C /usr/local -xz)
+}
+
