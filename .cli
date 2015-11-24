@@ -34,6 +34,8 @@ export PATH=/usr/local/bin:/usr/local/go/bin:$PATH:$GOPATH/bin:/sbin
 # ALIASES
 ###################
 
+alias todo="vim ~/dropbox/txt/todo.txt"
+
 # Easier navigation
 alias ..="cd .."
 alias ...="cd ../.."
@@ -110,8 +112,14 @@ worldtime() {
 
 # Git shit
 
+git-pull-pr() {
+ git fetch upstream pull/$1/head:pull-$1
+ git checkout pull-$1
+}
+
 git-combine-commit() {
-  git add . && git commit -m 'update' && git reset --soft HEAD~2 && git commit -m "$1"
+  LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
+  git add . && git commit -m 'update' && git reset --soft HEAD~2 && git commit -m "$LAST_COMMIT_MSG"
 }
 
 git-pr() {
@@ -236,3 +244,8 @@ update_docker_compose() {
   sudo mv docker-compose /usr/local/bin/docker-compose
   sudo chmod +x /usr/local/bin/docker-compose
 }
+
+xkcd_password() {
+  shuf -n5 /usr/share/dict/words | sed -e ':a;N;$!ba;s/\n/ /g;s/'\''//g;s/\b\(.\)/\u\1/g;s/ //g'
+}
+
