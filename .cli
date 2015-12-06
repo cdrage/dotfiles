@@ -35,6 +35,7 @@ export PATH=/usr/local/bin:/usr/local/go/bin:$PATH:$GOPATH/bin:/sbin
 ###################
 
 alias todo="vim ~/dropbox/txt/todo.txt"
+alias focus="cat ~/dropbox/txt/focus.txt"
 alias agenda="gcalcli agenda 12am 12pm --details description"
 
 # Easier navigation
@@ -79,7 +80,13 @@ alias battery='upower -i /org/freedesktop/UPower/devices/battery_BAT0'
 
 twitch() {
   local result=$1
-  livestreamer twitch.tv/$1 high
+  if [ -n "$2" ]
+  then
+    local quality=$2
+  else
+    local quality="high"
+  fi
+  livestreamer twitch.tv/$1 $quality
 }
 
 stream() {
@@ -92,75 +99,87 @@ digga() {
 }
 
 worldtime() {
-    timetoconvert='now'
-    [ ! -z "" ] && timetoconvert=
-    TZS=(
-        Asia/Shanghai       # China
-        Asia/Kolkata        # All of India
-        Europe/Prague       # Prague/Brno
-        Europe/Amsterdam    # Amsterdam
-        Europe/London       # London
-        UTC                
-        America/New_York
-        America/Chicago
-        America/Los_Angeles
-    )
-    for tz in Asia/Shanghai Asia/Kolkata Europe/Prague Europe/Amsterdam Europe/London UTC America/New_York America/Chicago America/Los_Angeles; do
-        string="Mon Nov 16 08:00:00 PST 2015"
-        echo -e "Mon Nov 16 08:00:00 PST 2015 \tAmerica/Los_Angeles"
-    done
+  timetoconvert='now'
+  [ ! -z "" ] && timetoconvert=
+  TZS=(
+  Asia/Shanghai       # China
+  Asia/Kolkata        # All of India
+  Europe/Prague       # Prague/Brno
+  Europe/Amsterdam    # Amsterdam
+  Europe/London       # London
+  UTC                
+  America/New_York
+  America/Chicago
+  America/Los_Angeles
+  )
+  for tz in Asia/Shanghai Asia/Kolkata Europe/Prague Europe/Amsterdam Europe/London UTC America/New_York America/Chicago America/Los_Angeles; do
+    string="Mon Nov 16 08:00:00 PST 2015"
+    echo -e "Mon Nov 16 08:00:00 PST 2015 \tAmerica/Los_Angeles"
+  done
 }
 
 # Git shit
 
 git-pull-pr() {
- git fetch upstream pull/$1/head:pull-$1
- git checkout pull-$1
+git fetch upstream pull/$1/head:pull-$1
+git checkout pull-$1
+}
+
+git-update() {
+LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
+git add . && git commit -m 'update' && git reset --soft HEAD~2 && git commit -m "$LAST_COMMIT_MSG"
 }
 
 git-combine-commit() {
-  LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
-  git add . && git commit -m 'update' && git reset --soft HEAD~2 && git commit -m "$LAST_COMMIT_MSG"
+if [ -z "$1" ]
+then
+  echo "Supply the last N commit you want to combine :)"
+  return 1
+fi
+# Combine last N commits with last message
+LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
+git reset --soft HEAD~$1 && git commit -m "$LAST_COMMIT_MSG"
 }
 
 git-pr() {
-  BRANCH=`git symbolic-ref --short HEAD`
-  if [ $? -ne 0 ]; then
-        echo "Unable to get branch name, is this even a git repo?"
-        exit
-  fi
-  echo "Branch: " $BRANCH
+BRANCH=`git symbolic-ref --short HEAD`
+if [ $? -ne 0 ]; then
+  echo "Unable to get branch name, is this even a git repo?"
+  return 1
+fi
+echo "Branch: " $BRANCH
 
-  ORIGIN_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
-  echo "Origin: " $ORIGIN_REPO
-  if [ $? -ne 0 ]; then
-        echo "Unable to get remote origin url"
-        exit
-  fi
+ORIGIN_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+echo "Origin: " $ORIGIN_REPO
+if [ $? -ne 0 ]; then
+  echo "Unable to get remote origin url"
+  return 1
+fi
 
-  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
-  echo "Upstream: " $UPSTREAM_REPO
-  if [ $? -ne 0 ]; then
-        echo "Unable to get upstream origin url.
-        Set a remote upstream via:
-        'git remote add upstream git@github.com/username/repo.git'"
-        exit
-  fi
+UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+echo "Upstream: " $UPSTREAM_REPO
+if [ $? -ne 0 ]; then
+  echo "Unable to get upstream origin url.
+  Set a remote upstream via:
+  'git remote add upstream git@github.com/username/repo.git'"
+  return 1
+fi
 
-  hub pull-request -b $UPSTREAM_REPO:$1 -h $ORIGIN_REPO:$BRANCH
+hub pull-request -b $UPSTREAM_REPO:$1 -h $ORIGIN_REPO:$BRANCH
 }
 
 git-push() {
-  BRANCH=`git symbolic-ref --short HEAD`
-  echo "Branch: " $BRANCH
-  if [ $? -ne 0 ]; then
-        echo "Unable to get branch name, is this even a git repo?"
-  fi
-  
-  if [[ "$1" == "-f" ]] 
-    then git push -f origin $BRANCH 
-    else git push origin $BRANCH
-  fi
+BRANCH=`git symbolic-ref --short HEAD`
+echo "Branch: " $BRANCH
+if [ $? -ne 0 ]; then
+  echo "Unable to get branch name, is this even a git repo?"
+  return 1
+fi
+
+if [[ "$1" == "-f" ]] 
+then git push -f origin $BRANCH 
+else git push origin $BRANCH
+fi
 }
 
 #####################
@@ -226,6 +245,25 @@ peerflix() {
   docker run --rm -it -p 8888:8888 $USER/peerflix $magnet
 }
 
+rainbowstream(){
+  docker run -it --rm \
+    -v /etc/localtime:/etc/localtime:ro \
+    -v $HOME/.rainbow_oauth:/root/.rainbow_oauth \
+    -v $HOME/.rainbow_config.json:/root/.rainbow_config.json \
+    --name rainbowstream \
+    $USER/rainbowstream
+}
+
+irc_twitch(){
+  del_stopped irc_twitch
+  docker run -it \
+    -v /etc/localtime:/etc/localtime:ro \
+    --name irc_twitch \
+    wikus/weechat \
+    -r "/server add twitch irc.twitch.tv -password=$TWITCHOAUTH;/set irc.server.twitch.nicks '$TWITCHUSER';/connect twitch"
+}
+
+
 ##########
 # OTHER
 ##########
@@ -234,9 +272,9 @@ peerflix() {
 update_docker_machine() {
   RELEASE=0.5.0
   curl -L https://github.com/docker/machine/releases/download/v$RELEASE/docker-machine_linux-amd64.zip >machine.zip && \
-  unzip machine.zip && \
-  rm machine.zip && \
-  sudo mv docker-machine* /usr/local/bin
+    unzip machine.zip && \
+    rm machine.zip && \
+    sudo mv docker-machine* /usr/local/bin
 }
 
 update_docker_compose() {
