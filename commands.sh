@@ -76,7 +76,7 @@ dropbox_install() {
 }
 
 install_golang() {
-  export GO_VERSION=1.5.1
+  export GO_VERSION=1.5.2
   export GO_SRC=/usr/local/go
   (curl -sSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | sudo tar -v -C /usr/local -xz)
 }
