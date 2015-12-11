@@ -141,6 +141,54 @@ LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
 git reset --soft HEAD~$1 && git commit -m "$LAST_COMMIT_MSG"
 }
 
+# need to clean this up in the future >.> but fuck it, it works.
+git-pull-pr() {
+  if [ -z "$1" ]
+  then
+    echo "Supply the PR yo. ex. https://github.com/project/repo/pull/9 or just 9"
+    return 1
+  fi
+
+  if [[ $1 == *"https"* ]]
+  then
+      echo "URL supplied, converting to a numbah";
+      1=`echo "$1" | grep -E -o "\/[0-9]+" | sed 's,/,,g'`
+  fi
+
+  ORIGIN_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+  echo "Origin: " $ORIGIN_REPO
+  if [ -z "$ORIGIN_REPO" ]; then
+    echo "Unable to get remote origin url"
+    return 1
+  fi
+
+  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+  echo "Upstream: " $UPSTREAM_REPO
+  if [ -z "$UPSTREAM_REPO" ]; then
+    echo "Unable to get upstream origin url.
+    Set a remote upstream via:
+    'git remote add upstream git@github.com/username/repo.git'"
+    return 1
+  fi
+
+  STATUS=`git status`
+  if [[ ! $STATUS == *"nothing to commit, working directory clean"* ]]; then
+    echo "Unable to checkout to master, commit your stuff first?"
+    return 1
+  fi
+
+  BRANCH_NAME=`curl -s "https://api.github.com/repos/${UPSTREAM_REPO}/pulls/${NUMBAH}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["head"]["ref"]'`
+  USERS_NAME=`curl -s "https://api.github.com/repos/${UPSTREAM_REPO}/pulls/${NUMBAH}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["head"]["user"]["login"]'`
+
+  echo "Pull-request: " $1
+  echo "Pull-request branch name: " $BRANCH_NAME
+  echo ""
+
+  git checkout master
+  git checkout -b $1-$USERS_NAME-$BRANCH_NAME
+  curl -s "https://patch-diff.githubusercontent.com/raw/${UPSTREAM_REPO}/pull/${NUMBAH}.patch" | git am
+}
+
 git-pr() {
   BRANCH=`git symbolic-ref --short HEAD`
   if [ -z "$BRANCH" ]; then
