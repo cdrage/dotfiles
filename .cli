@@ -120,29 +120,58 @@ worldtime() {
 
 # Git shit
 
-git-pull-pr() {
-git fetch upstream pull/$1/head:pull-$1
-git checkout pull-$1
+git-push() {
+  BRANCH=`git symbolic-ref --short HEAD`
+  echo "Branch: " $BRANCH
+  if [ $? -ne 0 ]; then
+    echo "Unable to get branch name, is this even a git repo?"
+    return 1
+  fi
+
+  if [[ "$1" == "-f" ]] 
+  then git push -f origin $BRANCH 
+  else git push origin $BRANCH
+  fi
 }
 
+# shit only combines commit message not body, TODO
 git-update() {
-LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
-git add . && git commit -m 'update' && git reset --soft HEAD~2 && git commit -m "$LAST_COMMIT_MSG"
+  LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
+  git add . && git commit -m 'update' && git reset --soft HEAD~2 && git commit -m "$LAST_COMMIT_MSG"
 }
 
+# shit only combines commit message not body, TODO
 git-combine-commit() {
-if [ -z "$1" ]
-then
-  echo "Supply the last N commit you want to combine :)"
-  return 1
-fi
-# Combine last N commits with last message
-LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
-git reset --soft HEAD~$1 && git commit -m "$LAST_COMMIT_MSG"
+  if [ -z "$1" ]
+  then
+    echo "Supply the last N commit you want to combine :)"
+    return 1
+  fi
+  # Combine last N commits with last message
+  LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
+  git reset --soft HEAD~$1 && git commit -m "$LAST_COMMIT_MSG"
 }
+
+# Github shit
+
+gh-sync-upstream() {
+  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+  echo "Upstream: " $UPSTREAM_REPO
+  if [ -z "$UPSTREAM_REPO" ]; then
+    echo "Unable to get upstream origin url.
+    Set a remote upstream via:
+    'git remote add upstream git@github.com/username/repo.git'"
+    return 1
+  fi
+  
+  git checkout master
+  git fetch upstream
+  git merge upstream/master
+}
+
 
 # need to clean this up in the future >.> but fuck it, it works.
-git-pull-pr() {
+gh-pull-pr() {
   if [ -z "$1" ]
   then
     echo "Supply the PR yo. ex. https://github.com/project/repo/pull/9 or just 9"
@@ -151,8 +180,10 @@ git-pull-pr() {
 
   if [[ $1 == *"https"* ]]
   then
-      echo "URL supplied, converting to a numbah";
-      1=`echo "$1" | grep -E -o "\/[0-9]+" | sed 's,/,,g'`
+    echo "URL supplied, converting to a numbah";
+    NUMBAH=`echo "$1" | grep -E -o "\/[0-9]+" | sed 's,/,,g'`
+  else
+    NUMBAH=$1
   fi
 
   ORIGIN_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
@@ -180,16 +211,25 @@ git-pull-pr() {
   BRANCH_NAME=`curl -s "https://api.github.com/repos/${UPSTREAM_REPO}/pulls/${NUMBAH}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["head"]["ref"]'`
   USERS_NAME=`curl -s "https://api.github.com/repos/${UPSTREAM_REPO}/pulls/${NUMBAH}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["head"]["user"]["login"]'`
 
-  echo "Pull-request: " $1
+  echo "User's name: " $USERS_NAME
+  echo "Pull-request: " $NUMBAH
   echo "Pull-request branch name: " $BRANCH_NAME
   echo ""
 
   git checkout master
-  git checkout -b $1-$USERS_NAME-$BRANCH_NAME
+  git checkout -b $NUMBAH-$USERS_NAME-$BRANCH_NAME
   curl -s "https://patch-diff.githubusercontent.com/raw/${UPSTREAM_REPO}/pull/${NUMBAH}.patch" | git am
 }
 
-git-pr() {
+gh-pr() {
+  if [ -z "$1" ]
+  then
+    echo "Nothing specified regarding branch, will be pushing to MASTER branch on UPSTREAM repo"
+    $UPSTREAM_BRANCH = "master"
+  else
+    $UPSTREAM_BRANCH = $1
+  fi
+
   BRANCH=`git symbolic-ref --short HEAD`
   if [ -z "$BRANCH" ]; then
     echo "Unable to get branch name, is this even a git repo?"
@@ -213,21 +253,7 @@ git-pr() {
     return 1
   fi
 
-  hub pull-request -b $UPSTREAM_REPO:$1 -h $ORIGIN_REPO:$BRANCH
-}
-
-git-push() {
-BRANCH=`git symbolic-ref --short HEAD`
-echo "Branch: " $BRANCH
-if [ $? -ne 0 ]; then
-  echo "Unable to get branch name, is this even a git repo?"
-  return 1
-fi
-
-if [[ "$1" == "-f" ]] 
-then git push -f origin $BRANCH 
-else git push origin $BRANCH
-fi
+  hub pull-request -b $UPSTREAM_REPO:$UPSTREAM_BRANCH -h $ORIGIN_REPO:$BRANCH
 }
 
 #####################
@@ -300,6 +326,14 @@ irc_twitch(){
     --name irc_twitch \
     wikus/weechat \
     -r "/server add twitch irc.twitch.tv -password=$TWITCHOAUTH;/set irc.server.twitch.nicks '$TWITCHUSER';/connect twitch"
+}
+
+yubikey() {
+  docker run --rm -it \
+    --device /dev/bus/usb \
+    --device /dev/usb \
+    --name ykpersonalize \
+    $USER/ykpersonalize bash
 }
 
 
