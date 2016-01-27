@@ -98,27 +98,44 @@ digga() {
   dig +nocmd "$1" any +multiline +noall +answer
 }
 
-worldtime() {
-  timetoconvert='now'
-  [ ! -z "" ] && timetoconvert=
-  TZS=(
-  Asia/Shanghai       # China
-  Asia/Kolkata        # All of India
-  Europe/Prague       # Prague/Brno
-  Europe/Amsterdam    # Amsterdam
-  Europe/London       # London
-  UTC                
-  America/New_York
-  America/Chicago
-  America/Los_Angeles
-  )
-  for tz in Asia/Shanghai Asia/Kolkata Europe/Prague Europe/Amsterdam Europe/London UTC America/New_York America/Chicago America/Los_Angeles; do
-    string="Mon Nov 16 08:00:00 PST 2015"
-    echo -e "Mon Nov 16 08:00:00 PST 2015 \tAmerica/Los_Angeles"
-  done
+xkcd() {
+  shuf -n5 /usr/share/dict/words | sed -e ':a;N;$!ba;s/\n/ /g;s/'\''//g;s/\b\(.\)/\u\1/g;s/ //g'
 }
 
-# Git shit
+gogo() {
+  cd $GOPATH/src/$1
+}
+
+spoof_mac() {
+  # For all those pesky airports with 45 minutes only complimentary access
+  # turns off network-manager, spoofs the address and comes back up
+  if [ -z "$1" ]
+  then
+    echo "plz supply your network interface"
+    return 1
+  fi
+  sudo service network-manager stop
+  sudo macchanger -r $1
+  sudo service network-manager start
+  echo "shits spoofed"
+}
+
+restore_mac() {
+  if [ -z "$1" ]
+  then
+    echo "plz supply your network interface"
+    return 1
+  fi
+  sudo service network-manager stop
+  sudo macchanger -p $1
+  sudo service network-manager start
+  echo "shits restored"
+}
+
+
+###################
+# FUNCTIONS: GITHUB
+###################
 
 git-push() {
   BRANCH=`git symbolic-ref --short HEAD`
@@ -152,8 +169,6 @@ git-combine-commit() {
   git reset --soft HEAD~$1 && git commit -m "$LAST_COMMIT_MSG"
 }
 
-# Github shit
-
 gh-sync-upstream() {
   UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
   echo "Upstream: " $UPSTREAM_REPO
@@ -167,6 +182,15 @@ gh-sync-upstream() {
   git checkout master
   git fetch upstream
   git merge upstream/master
+}
+
+gh-patch-commit() {
+  if [ -z "$1" ]
+  then
+    echo "Supply the commit yo. ex. https://github.com/foo/bar/commit/9b997db51837dd"
+    return 1
+  fi
+  curl -s "${1}.patch"| git am
 }
 
 
@@ -257,7 +281,7 @@ gh-pr() {
 }
 
 #####################
-# DOCKER FUNCTIONS
+# FUNCTIONS: DOCKER
 #####################
 
 # removes all stoppped containers && dangling images
@@ -338,7 +362,7 @@ yubikey() {
 
 
 ##########
-# OTHER
+# DEV / UPDATING 
 ##########
 
 
@@ -357,7 +381,90 @@ update_docker_compose() {
   sudo chmod +x /usr/local/bin/docker-compose
 }
 
-xkcd_password() {
-  shuf -n5 /usr/share/dict/words | sed -e ':a;N;$!ba;s/\n/ /g;s/'\''//g;s/\b\(.\)/\u\1/g;s/ //g'
+update_oc() {
+  URL="https://github.com/openshift/origin/releases/download/v1.1.0.1/"
+  RELEASE="openshift-origin-client-tools-v1.1.0.1-bf56e23-linux-64bit"
+  wget $URL$RELEASE.tar.gz -O openshift.tar.gz
+  tar -xvf openshift.tar.gz --strip-components=1
+  sudo mv oc /usr/local/bin/oc
+  rm -r openshift.tar.gz README.md LICENSE
 }
 
+k8s(){
+  case "$1" in
+    up) # Launch and then wait for k8s to initialize on port 8080
+      echo "Launching local k8s cluster"
+      docker run --net=host -d gcr.io/google_containers/etcd:2.0.9 /usr/local/bin/etcd --addr=127.0.0.1:4001 --bind-addr=0.0.0.0:4001 --data-dir=/var/etcd/data
+      docker run --net=host -d -v /var/run/docker.sock:/var/run/docker.sock gcr.io/google_containers/hyperkube:v0.21.2 /hyperkube kubelet --api_servers=http://localhost:8080 --v=2 --address=0.0.0.0 --enable_server --hostname_override=127.0.0.1 --config=/etc/kubernetes/manifests
+      docker run -d --net=host --privileged gcr.io/google_containers/hyperkube:v0.21.2 /hyperkube proxy --master=http://127.0.0.1:8080 --v=2
+      echo "Waiting for k8s containers to initialize" 
+      until nc -z 127.0.0.1 8080;
+      do
+          echo ...
+          sleep 1
+      done
+      echo "Launched!"
+      ;;
+    down)
+      echo "Removing local k8s cluster"
+      docker ps -a | grep 'gcr.io/google_containers' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
+      docker ps -a | grep 'k8s_' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
+      ;;
+    restart)
+      echo "Removing and restarting local dev cluster"
+      k8s down
+      k8s up
+      ;;
+    *)
+      echo "Kubernetes dev environment"
+      echo "Usage: k8s {up|down|restart}"
+  esac
+}
+
+openshift(){
+  case "$1" in
+    up) # Launch and then wait for k8s to initialize on port 8080
+      echo "Launching local openshift cluster"
+      docker run -d --name "origin" \
+        --privileged --pid=host --net=host \
+        -v /:/rootfs:ro -v /var/run:/var/run:rw -v /sys:/sys -v /var/lib/docker:/var/lib/docker:rw \
+        -v /var/lib/origin/openshift.local.volumes:/var/lib/origin/openshift.local.volumes \
+        openshift/origin start
+      echo "Waiting for openshift to initialize" 
+      until nc -z 127.0.0.1 8443;
+      do
+          echo ...
+          sleep 1
+      done
+      echo "Launched!"
+      echo "Grapping access token"
+      API_KEY=`curl -k -L -D - -u openshift:openshift -H 'X-CSRF-Token: 1' 'https://localhost:8443/oauth/authorize?response_type=token&client_id=openshift-challenging-client' 2>&1 | grep -oP "access_token=\K[^&]*"`
+      export API_KEY
+      echo "Access token: " $API_KEY
+      echo "Token exported to API_KEY"
+      oc config set-credentials openshift --token=$API_KEY
+      oc config set-cluster openshift1 --server=https://localhost:8443 --insecure-skip-tls-verify=true
+      oc config set-context openshift --cluster=openshift1 --user=openshift
+      oc config use-context openshift
+      oc config set contexts.openshift.namespace foo
+      oc new-project foo
+      ;;
+    down)
+      echo "Removing local openshift cluster"
+      # Remove origin
+      docker rm -f origin
+
+      # Remove all kubernetes back-end containers created by origin
+      docker ps -a | grep 'gcr.io/google_containers' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f || true
+      docker ps -a | grep 'k8s_' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f || true
+      ;;
+    restart)
+      echo "Removing and restarting local dev cluster"
+      openshift down
+      openshift up
+      ;;
+    *)
+      echo "OpenShift dev environment"
+      echo "Usage: openshift {up|down|restart}"
+  esac
+}
