@@ -360,13 +360,24 @@ yubikey() {
     $USER/ykpersonalize bash
 }
 
+dotfiles_backup() {
+  # Normal shit
+  for file in ~/.{cli,extra,tmux.conf,zshrc}; do
+    cp $file ~/dropbox/dev/dotfiles/
+  done
+
+  # Misc
+  mkdir -p ~/dropbox/dev/dotfiles/misc/terminator/
+  cp ~/.config/terminator/config ~/dropbox/dev/dotfiles/misc/terminator/config
+}
+
 
 ##########
-# DEV / UPDATING 
+# CONSTANTLY UPDATING / INSTALLING SHIT
 ##########
 
 
-update_docker_machine() {
+install_docker_machine() {
   RELEASE=0.5.0
   curl -L https://github.com/docker/machine/releases/download/v$RELEASE/docker-machine_linux-amd64.zip >machine.zip && \
     unzip machine.zip && \
@@ -374,14 +385,14 @@ update_docker_machine() {
     sudo mv docker-machine* /usr/local/bin
 }
 
-update_docker_compose() {
+install_docker_compose() {
   RELEASE=1.5.0
   curl -L https://github.com/docker/compose/releases/download/$RELEASE/docker-compose-Linux-x86_64 > docker-compose
   sudo mv docker-compose /usr/local/bin/docker-compose
   sudo chmod +x /usr/local/bin/docker-compose
 }
 
-update_oc() {
+install_oc() {
   URL="https://github.com/openshift/origin/releases/download/v1.1.0.1/"
   RELEASE="openshift-origin-client-tools-v1.1.0.1-bf56e23-linux-64bit"
   wget $URL$RELEASE.tar.gz -O openshift.tar.gz
@@ -390,81 +401,250 @@ update_oc() {
   rm -r openshift.tar.gz README.md LICENSE
 }
 
-k8s(){
-  case "$1" in
-    up) # Launch and then wait for k8s to initialize on port 8080
-      echo "Launching local k8s cluster"
-      docker run --net=host -d gcr.io/google_containers/etcd:2.0.9 /usr/local/bin/etcd --addr=127.0.0.1:4001 --bind-addr=0.0.0.0:4001 --data-dir=/var/etcd/data
-      docker run --net=host -d -v /var/run/docker.sock:/var/run/docker.sock gcr.io/google_containers/hyperkube:v0.21.2 /hyperkube kubelet --api_servers=http://localhost:8080 --v=2 --address=0.0.0.0 --enable_server --hostname_override=127.0.0.1 --config=/etc/kubernetes/manifests
-      docker run -d --net=host --privileged gcr.io/google_containers/hyperkube:v0.21.2 /hyperkube proxy --master=http://127.0.0.1:8080 --v=2
-      echo "Waiting for k8s containers to initialize" 
-      until nc -z 127.0.0.1 8080;
-      do
-          echo ...
-          sleep 1
-      done
-      echo "Launched!"
-      ;;
-    down)
-      echo "Removing local k8s cluster"
-      docker ps -a | grep 'gcr.io/google_containers' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
-      docker ps -a | grep 'k8s_' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
-      ;;
-    restart)
-      echo "Removing and restarting local dev cluster"
-      k8s down
-      k8s up
-      ;;
-    *)
-      echo "Kubernetes dev environment"
-      echo "Usage: k8s {up|down|restart}"
-  esac
+install_sudo() { 
+  adduser $1 sudo 
+  { \
+    echo -e "$1 ALL=(ALL) NOPASSWD:ALL";
+  } >> /etc/sudoers
 }
 
-openshift(){
-  case "$1" in
-    up) # Launch and then wait for k8s to initialize on port 8080
-      echo "Launching local openshift cluster"
-      docker run -d --name "origin" \
-        --privileged --pid=host --net=host \
-        -v /:/rootfs:ro -v /var/run:/var/run:rw -v /sys:/sys -v /var/lib/docker:/var/lib/docker:rw \
-        -v /var/lib/origin/openshift.local.volumes:/var/lib/origin/openshift.local.volumes \
-        openshift/origin start
-      echo "Waiting for openshift to initialize" 
-      until nc -z 127.0.0.1 8443;
-      do
-          echo ...
-          sleep 1
-      done
-      echo "Launched!"
-      echo "Grapping access token"
-      API_KEY=`curl -k -L -D - -u openshift:openshift -H 'X-CSRF-Token: 1' 'https://localhost:8443/oauth/authorize?response_type=token&client_id=openshift-challenging-client' 2>&1 | grep -oP "access_token=\K[^&]*"`
-      export API_KEY
-      echo "Access token: " $API_KEY
-      echo "Token exported to API_KEY"
-      oc config set-credentials openshift --token=$API_KEY
-      oc config set-cluster openshift1 --server=https://localhost:8443 --insecure-skip-tls-verify=true
-      oc config set-context openshift --cluster=openshift1 --user=openshift
-      oc config use-context openshift
-      oc config set contexts.openshift.namespace foo
-      oc new-project foo
-      ;;
-    down)
-      echo "Removing local openshift cluster"
-      # Remove origin
-      docker rm -f origin
+install_vim() {
+  sudo apt-get install -y vim
+  git clone git://github.com/charliedrage/vim.git ~/.vim
+  git clone https://github.com/VundleVim/Vundle.vim.git ~/.vim/bundle/Vundle.vim
+  cp ~/.vim/.vimrc ~/
+  vim +PluginInstall +qall
+}
 
-      # Remove all kubernetes back-end containers created by origin
-      docker ps -a | grep 'gcr.io/google_containers' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f || true
-      docker ps -a | grep 'k8s_' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f || true
-      ;;
-    restart)
-      echo "Removing and restarting local dev cluster"
-      openshift down
-      openshift up
-      ;;
-    *)
-      echo "OpenShift dev environment"
-      echo "Usage: openshift {up|down|restart}"
-  esac
+install_terminator() {
+  sudo apt-get install -y terminator
+  mkdir -p ~/.config/terminator
+  cp .config/terminator/config ~/.config/terminator/config
+}
+
+install_tmux() {
+  sudo apt-get install tmux
+  git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+  cp .tmux.conf ~/
+}
+
+install_docker() {
+  if [ -z "$1" ]
+    then
+      echo "Must provide a user to install for"
+      return 1
+  fi
+
+  # Prelim
+  sudo apt-get install cgroupfs-mount iptables xz-utils -y
+  sudo groupadd docker
+  sudo gpasswd -a wikus docker
+
+  # Grab that sweet binary goodness
+  curl -sSL https://get.docker.com/builds/Linux/x86_64/docker-latest > docker
+  sudo cp docker /usr/bin/docker
+  sudo chmod +x /usr/bin/docker
+
+  # SystemD
+  sudo bash -c 'cat >/etc/systemd/system/docker.service <<EOL
+[Unit]
+Description=Docker Application Container Engine
+Documentation=https://docs.docker.com
+After=network.target docker.socket
+Requires=docker.socket
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/docker daemon -H fd://
+MountFlags=slave
+LimitNOFILE=1048576
+LimitNPROC=1048576
+LimitCORE=infinity
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
+EOL'
+
+  sudo bash -c 'cat >/etc/systemd/system/docker.socket <<EOL
+[Unit]
+Description=Docker Socket for the API
+PartOf=docker.service
+
+[Socket]
+ListenStream=/var/run/docker.sock
+SocketMode=0660
+SocketUser=root
+SocketGroup=docker
+
+[Install]
+WantedBy=sockets.target
+EOL'
+
+  sudo systemctl daemon-reload
+  sudo systemctl enable docker
+  echo "\n\nDocker installed. Reboot recommended now :)"
+
+  # Grub stuff
+  sudo sed -i.bak 's/GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"/g' /etc/default/grub
+  echo "\n\nGrub updated. Please run update-grub and reboot"
+
+}
+
+install_dropbox() {
+  git clone https://github.com/charliedrage/dockerfiles ~/dockerfiles
+  cd ~/dockerfiles/dropbox && docker build -t dropbox .
+  docker run -d -e UID=$(id -u) -v ~/.dropbox:/home/.dropbox -v ~/dropbox:/home/Dropbox --name dropbox dropbox
+  sleep 3
+  echo "!!!!! Make sure you click the link below then ctrl+c outta there. Afterwards, your dropbox (should) start syncing!!!!!"
+  docker logs dropbox
+}
+
+install_golang() {
+  export GO_VERSION=1.6.0
+  export GO_SRC=/usr/local/go
+  (curl -sSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | sudo tar -v -C /usr/local -xz)
+}
+
+install_usage() {
+  echo -e "\n\tInstall / Update shit\n"
+  echo "Usage:"
+  echo "  docker"
+  echo "  docker-machine"
+  echo "  docker-compose"
+  echo "  oc"
+  echo "  go"
+  echo "  sudo"
+  echo "  vim"
+  echo "  terminator"
+  echo "  tmux"
+}
+
+
+install() {
+  local cmd=$1
+
+  if [[ $cmd == "docker" ]]; then
+    install_docker ${@:2}
+  elif [[ $cmd == "docker-machine" ]]; then
+    install_docker_machine
+  elif [[ $cmd == "docker-compose" ]]; then
+    install_docker_compose
+  elif [[ $cmd == "oc" ]]; then
+    install_oc
+  elif [[ $cmd == "sudo" ]]; then
+    install_sudo
+  elif [[ $cmd == "vim" ]]; then
+    install_vim
+  elif [[ $cmd == "terminator" ]]; then
+    install_terminator
+  elif [[ $cmd == "tmux" ]]; then
+    install_tmux
+  elif [[ $cmd == "dropbox" ]]; then
+    install_dropbox
+  elif [[ $cmd == "go" ]]; then
+    install_golang
+  else
+    install_usage
+  fi
+}
+
+##########
+# DEV / CLUSTER ENVIRONMENTS
+##########
+
+dev_usage() {
+  echo -e "\n\tDev environments\n"
+  echo "Usage:"
+  echo "  k8s               - single kubernetes cluster"
+  echo "  os                - single openshift cluster"
+}
+
+dev() {
+  local cmd=$1
+
+  if [[ $cmd == "k8s" ]]; then
+    dev_k8s ${@:2}
+  elif [[ $cmd == "os" ]]; then
+    dev_openshift ${@:2}
+  else
+    dev_usage 
+  fi
+}
+
+dev_k8s(){
+  local choice=$1
+
+  if [[ $choice == "up" ]]; then
+    echo "Launching local k8s cluster"
+    docker run --net=host -d gcr.io/google_containers/etcd:2.0.9 /usr/local/bin/etcd --addr=127.0.0.1:4001 --bind-addr=0.0.0.0:4001 --data-dir=/var/etcd/data
+    docker run --net=host -d -v /var/run/docker.sock:/var/run/docker.sock gcr.io/google_containers/hyperkube:v0.21.2 /hyperkube kubelet --api_servers=http://localhost:8080 --v=2 --address=0.0.0.0 --enable_server --hostname_override=127.0.0.1 --config=/etc/kubernetes/manifests
+    docker run -d --net=host --privileged gcr.io/google_containers/hyperkube:v0.21.2 /hyperkube proxy --master=http://127.0.0.1:8080 --v=2
+    echo "Waiting for k8s containers to initialize" 
+    until nc -z 127.0.0.1 8080;
+    do
+      echo ...
+      sleep 1
+    done
+    echo "Launched!"
+  elif [[ $choice == "down" ]]; then
+    echo "Removing local k8s cluster"
+    docker ps -a | grep 'gcr.io/google_containers/hyperkube' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
+    docker ps -a | grep 'gcr.io/google_containers/etcd' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
+    docker ps -a | grep 'k8s_' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
+  elif [[ $choice == "restart" ]]; then
+    dev_k8s down
+    dev_k8s up
+  else
+    echo "Kubernetes dev environment"
+    echo "Usage: k8s {up|down|restart}"
+  fi
+}
+
+dev_openshift(){
+  local choice=$1
+
+  if [[ $choice == "up" ]]; then
+    echo "Launching local openshift cluster"
+    docker run -d --name "origin" \
+      --privileged --pid=host --net=host \
+      -v /:/rootfs:ro -v /var/run:/var/run:rw -v /sys:/sys -v /var/lib/docker:/var/lib/docker:rw \
+      -v /var/lib/origin/openshift.local.volumes:/var/lib/origin/openshift.local.volumes \
+      openshift/origin start
+    echo "Waiting for openshift to initialize" 
+    until nc -z 127.0.0.1 8443;
+    do
+      echo ...
+      sleep 1
+    done
+    echo "Launched!"
+    echo "Grapping access token"
+    API_KEY=`curl -k -L -D - -u openshift:openshift -H 'X-CSRF-Token: 1' 'https://localhost:8443/oauth/authorize?response_type=token&client_id=openshift-challenging-client' 2>&1 | grep -oP "access_token=\K[^&]*"`
+    export API_KEY
+    echo "Access token: " $API_KEY
+    echo "Token exported to API_KEY"
+    oc config set-credentials openshift --token=$API_KEY
+    oc config set-cluster openshift1 --server=https://localhost:8443 --insecure-skip-tls-verify=true
+    oc config set-context openshift --cluster=openshift1 --user=openshift
+    oc config use-context openshift
+    oc config set contexts.openshift.namespace foo
+    sleep 1
+    oc new-project foo
+  elif [[ $choice == "down" ]]; then
+    echo "Removing local openshift cluster"
+    # Remove origin
+    docker rm -f origin
+
+    # Remove all kubernetes back-end containers created by origin
+    docker ps -a | grep 'gcr.io/google_containers/hyperkube' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
+    docker ps -a | grep 'gcr.io/google_containers/etcd' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
+    docker ps -a | grep 'k8s_' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f || true
+  elif [[ $choice == "restart" ]]; then
+    echo "Removing and restarting local dev cluster"
+    dev_openshift down
+    dev_openshift up
+  else
+    echo "OpenShift dev environment"
+    echo "Usage: openshift {up|down|restart}"
+  fi
 }

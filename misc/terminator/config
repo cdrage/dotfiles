@@ -15,7 +15,7 @@
     cursor_color = "#dcdcdc"
     foreground_color = "#dcdcdc"
     show_titlebar = False
-    font = Droid Sans Mono 8
+    font = Droid Sans Mono 9
     background_color = "#3f3f3f"
     allow_bold = False
     scrollback_infinite = True
