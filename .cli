@@ -133,16 +133,16 @@ restore_mac() {
 }
 
 blog-init-post() {
-  if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]
-  then
-    echo "Usage: blog-init-post url-title 'title', 'topic'"
-    return 1
-  fi
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]
+then
+  echo "Usage: blog-init-post url-title 'title', 'topic'"
+  return 1
+fi
 
-  DATE=`date "+%Y-%m-%d"`
-  DATE2=`date "+%Y-%m-%d %H:%M"`
-  echo $DATE
-  cat >$DATE-$1.markdown <<EOL
+DATE=`date "+%Y-%m-%d"`
+DATE2=`date "+%Y-%m-%d %H:%M"`
+echo $DATE
+cat >$DATE-$1.markdown <<EOL
 ---
 layout: post
 topic: $3
@@ -152,7 +152,7 @@ date: $DATE2
 
 
 EOL
-  vim +$ +startinsert $DATE-$1.markdown
+vim +$ +startinsert $DATE-$1.markdown
 }
 
 
@@ -161,146 +161,146 @@ EOL
 ###################
 
 git-push() {
-  BRANCH=`git symbolic-ref --short HEAD`
-  echo "Branch: " $BRANCH
-  if [ $? -ne 0 ]; then
-    echo "Unable to get branch name, is this even a git repo?"
-    return 1
-  fi
+BRANCH=`git symbolic-ref --short HEAD`
+echo "Branch: " $BRANCH
+if [ $? -ne 0 ]; then
+  echo "Unable to get branch name, is this even a git repo?"
+  return 1
+fi
 
-  if [[ "$1" == "-f" ]] 
-  then git push -f origin $BRANCH 
-  else git push origin $BRANCH
-  fi
+if [[ "$1" == "-f" ]] 
+then git push -f origin $BRANCH 
+else git push origin $BRANCH
+fi
 }
 
 # shit only combines commit message not body, TODO
 git-update() {
-  LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
-  git add . && git commit -m 'update' && git reset --soft HEAD~2 && git commit -m "$LAST_COMMIT_MSG"
+LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
+git add . && git commit -m 'update' && git reset --soft HEAD~2 && git commit -m "$LAST_COMMIT_MSG"
 }
 
 # shit only combines commit message not body, TODO
 git-combine-commit() {
-  if [ -z "$1" ]
-  then
-    echo "Supply the last N commit you want to combine :)"
-    return 1
-  fi
-  # Combine last N commits with last message
-  LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
-  git reset --soft HEAD~$1 && git commit -m "$LAST_COMMIT_MSG"
+if [ -z "$1" ]
+then
+  echo "Supply the last N commit you want to combine :)"
+  return 1
+fi
+# Combine last N commits with last message
+LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
+git reset --soft HEAD~$1 && git commit -m "$LAST_COMMIT_MSG"
 }
 
 gh-sync-upstream() {
-  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
-  echo "Upstream: " $UPSTREAM_REPO
-  if [ -z "$UPSTREAM_REPO" ]; then
-    echo "Unable to get upstream origin url.
-    Set a remote upstream via:
-    'git remote add upstream git@github.com/username/repo.git'"
-    return 1
-  fi
-  
-  git checkout master
-  git fetch upstream
-  git merge upstream/master
+UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+echo "Upstream: " $UPSTREAM_REPO
+if [ -z "$UPSTREAM_REPO" ]; then
+  echo "Unable to get upstream origin url.
+  Set a remote upstream via:
+  'git remote add upstream git@github.com/username/repo.git'"
+  return 1
+fi
+
+git checkout master
+git fetch upstream
+git merge upstream/master
 }
 
 gh-patch-commit() {
-  if [ -z "$1" ]
-  then
-    echo "Supply the commit yo. ex. https://github.com/foo/bar/commit/9b997db51837dd"
-    return 1
-  fi
-  curl -s "${1}.patch"| git am
+if [ -z "$1" ]
+then
+  echo "Supply the commit yo. ex. https://github.com/foo/bar/commit/9b997db51837dd"
+  return 1
+fi
+curl -s "${1}.patch"| git am
 }
 
 
 # need to clean this up in the future >.> but fuck it, it works.
 gh-pull-pr() {
-  if [ -z "$1" ]
-  then
-    echo "Supply the PR yo. ex. https://github.com/project/repo/pull/9 or just 9"
-    return 1
-  fi
+if [ -z "$1" ]
+then
+  echo "Supply the PR yo. ex. https://github.com/project/repo/pull/9 or just 9"
+  return 1
+fi
 
-  if [[ $1 == *"https"* ]]
-  then
-    echo "URL supplied, converting to a numbah";
-    NUMBAH=`echo "$1" | grep -E -o "\/[0-9]+" | sed 's,/,,g'`
-  else
-    NUMBAH=$1
-  fi
+if [[ $1 == *"https"* ]]
+then
+  echo "URL supplied, converting to a numbah";
+  NUMBAH=`echo "$1" | grep -E -o "\/[0-9]+" | sed 's,/,,g'`
+else
+  NUMBAH=$1
+fi
 
-  ORIGIN_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
-  echo "Origin: " $ORIGIN_REPO
-  if [ -z "$ORIGIN_REPO" ]; then
-    echo "Unable to get remote origin url"
-    return 1
-  fi
+ORIGIN_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+echo "Origin: " $ORIGIN_REPO
+if [ -z "$ORIGIN_REPO" ]; then
+  echo "Unable to get remote origin url"
+  return 1
+fi
 
-  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
-  echo "Upstream: " $UPSTREAM_REPO
-  if [ -z "$UPSTREAM_REPO" ]; then
-    echo "Unable to get upstream origin url.
-    Set a remote upstream via:
-    'git remote add upstream git@github.com/username/repo.git'"
-    return 1
-  fi
+UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+echo "Upstream: " $UPSTREAM_REPO
+if [ -z "$UPSTREAM_REPO" ]; then
+  echo "Unable to get upstream origin url.
+  Set a remote upstream via:
+  'git remote add upstream git@github.com/username/repo.git'"
+  return 1
+fi
 
-  STATUS=`git status`
-  if [[ ! $STATUS == *"nothing to commit, working directory clean"* ]]; then
-    echo "Unable to checkout to master, commit your stuff first?"
-    return 1
-  fi
+STATUS=`git status`
+if [[ ! $STATUS == *"nothing to commit, working directory clean"* ]]; then
+  echo "Unable to checkout to master, commit your stuff first?"
+  return 1
+fi
 
-  BRANCH_NAME=`curl -s "https://api.github.com/repos/${UPSTREAM_REPO}/pulls/${NUMBAH}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["head"]["ref"]'`
-  USERS_NAME=`curl -s "https://api.github.com/repos/${UPSTREAM_REPO}/pulls/${NUMBAH}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["head"]["user"]["login"]'`
+BRANCH_NAME=`curl -s "https://api.github.com/repos/${UPSTREAM_REPO}/pulls/${NUMBAH}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["head"]["ref"]'`
+USERS_NAME=`curl -s "https://api.github.com/repos/${UPSTREAM_REPO}/pulls/${NUMBAH}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["head"]["user"]["login"]'`
 
-  echo "User's name: " $USERS_NAME
-  echo "Pull-request: " $NUMBAH
-  echo "Pull-request branch name: " $BRANCH_NAME
-  echo ""
+echo "User's name: " $USERS_NAME
+echo "Pull-request: " $NUMBAH
+echo "Pull-request branch name: " $BRANCH_NAME
+echo ""
 
-  git checkout master
-  git checkout -b $NUMBAH-$USERS_NAME-$BRANCH_NAME
-  curl -s "https://patch-diff.githubusercontent.com/raw/${UPSTREAM_REPO}/pull/${NUMBAH}.patch" | git am
+git checkout master
+git checkout -b $NUMBAH-$USERS_NAME-$BRANCH_NAME
+curl -s "https://patch-diff.githubusercontent.com/raw/${UPSTREAM_REPO}/pull/${NUMBAH}.patch" | git am
 }
 
 gh-pr() {
-  if [ -z "$1" ]
-  then
-    echo "Nothing specified regarding branch, will be pushing to MASTER branch on UPSTREAM repo"
-    $UPSTREAM_BRANCH = "master"
-  else
-    $UPSTREAM_BRANCH = $1
-  fi
+if [ -z "$1" ]
+then
+  echo "Nothing specified regarding branch, will be pushing to MASTER branch on UPSTREAM repo"
+  $UPSTREAM_BRANCH = "master"
+else
+  $UPSTREAM_BRANCH = $1
+fi
 
-  BRANCH=`git symbolic-ref --short HEAD`
-  if [ -z "$BRANCH" ]; then
-    echo "Unable to get branch name, is this even a git repo?"
-    return 1
-  fi
-  echo "Branch: " $BRANCH
+BRANCH=`git symbolic-ref --short HEAD`
+if [ -z "$BRANCH" ]; then
+  echo "Unable to get branch name, is this even a git repo?"
+  return 1
+fi
+echo "Branch: " $BRANCH
 
-  ORIGIN_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
-  echo "Origin: " $ORIGIN_REPO
-  if [ -z "$ORIGIN_REPO" ]; then
-    echo "Unable to get remote origin url"
-    return 1
-  fi
+ORIGIN_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+echo "Origin: " $ORIGIN_REPO
+if [ -z "$ORIGIN_REPO" ]; then
+  echo "Unable to get remote origin url"
+  return 1
+fi
 
-  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
-  echo "Upstream: " $UPSTREAM_REPO
-  if [ -z "$UPSTREAM_REPO" ]; then
-    echo "Unable to get upstream origin url.
-    Set a remote upstream via:
-    'git remote add upstream git@github.com/username/repo.git'"
-    return 1
-  fi
+UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+echo "Upstream: " $UPSTREAM_REPO
+if [ -z "$UPSTREAM_REPO" ]; then
+  echo "Unable to get upstream origin url.
+  Set a remote upstream via:
+  'git remote add upstream git@github.com/username/repo.git'"
+  return 1
+fi
 
-  hub pull-request -b $UPSTREAM_REPO:$UPSTREAM_BRANCH -h $ORIGIN_REPO:$BRANCH
+hub pull-request -b $UPSTREAM_REPO:$UPSTREAM_BRANCH -h $ORIGIN_REPO:$BRANCH
 }
 
 #####################
@@ -396,7 +396,7 @@ dotfiles_backup() {
 
 
 ##########
-# CONSTANTLY UPDATING / INSTALLING SHIT
+# Install shit
 ##########
 
 
@@ -416,19 +416,25 @@ install_docker_compose() {
 }
 
 install_oc() {
-  URL="https://github.com/openshift/origin/releases/download/v1.1.0.1/"
-  RELEASE="openshift-origin-client-tools-v1.1.0.1-bf56e23-linux-64bit"
-  wget $URL$RELEASE.tar.gz -O openshift.tar.gz
+  RELEASE="https://github.com/openshift/origin/releases/download/v1.1.3/openshift-origin-client-tools-v1.1.3-cffae05-linux-64bit.tar.gz"
+  wget $RELEASE -O openshift.tar.gz
   tar -xvf openshift.tar.gz --strip-components=1
   sudo mv oc /usr/local/bin/oc
   rm -r openshift.tar.gz README.md LICENSE
+}
+
+install_kubectl() {
+  RELEASE=1.1.7
+  wget https://storage.googleapis.com/kubernetes-release/release/v$RELEASE/bin/linux/amd64/kubectl
+  sudo mv kubectl /usr/local/bin/
+  sudo chmod +x /usr/local/bin/kubectl
 }
 
 install_sudo() { 
   adduser $1 sudo 
   { \
     echo -e "$1 ALL=(ALL) NOPASSWD:ALL";
-  } >> /etc/sudoers
+} >> /etc/sudoers
 }
 
 install_vim() {
@@ -452,71 +458,94 @@ install_tmux() {
 }
 
 install_docker() {
-  if [ -z "$1" ]
-    then
-      echo "Must provide a user to install for"
-      return 1
-  fi
+  RELEASE=latest
+
+  echo "\n\n-----Installing: $RELEASE of Docker-----\n\n"
 
   # Prelim
+  echo "\n\n-----Installing prelim stuff-----\n\n"
   sudo apt-get install cgroupfs-mount iptables xz-utils -y
   sudo groupadd docker
-  sudo gpasswd -a wikus docker
+  sudo gpasswd -a $USER docker
+
+  # Make sure that there is no Docker on our system. If there is. Remove that shit! 
+  # As well as any systemd files
+  if [ -f /usr/bin/docker ]; then
+    echo "\n\n-----Removing previously installed docker-----\n\n"
+    sudo systemctl stop docker || true
+    sudo systemctl disable docker || true
+    sudo rm /usr/bin/docker
+  fi
 
   # Grab that sweet binary goodness
-  curl -sSL https://get.docker.com/builds/Linux/x86_64/docker-latest > docker
+  echo "\n\n-----Grabbing the Docker binary-----\n\n"
+  curl https://get.docker.com/builds/Linux/x86_64/docker-$RELEASE > docker
   sudo cp docker /usr/bin/docker
   sudo chmod +x /usr/bin/docker
 
+  echo "\n\n-----Installing SystemD files-----\n\n"
   # SystemD
   sudo bash -c 'cat >/etc/systemd/system/docker.service <<EOL
-[Unit]
-Description=Docker Application Container Engine
-Documentation=https://docs.docker.com
-After=network.target docker.socket
-Requires=docker.socket
+  [Unit]
+  Description=Docker Application Container Engine
+  Documentation=https://docs.docker.com
+  After=network.target docker.socket
+  Requires=docker.socket
 
-[Service]
-Type=notify
-ExecStart=/usr/bin/docker daemon -H fd://
-MountFlags=slave
-LimitNOFILE=1048576
-LimitNPROC=1048576
-LimitCORE=infinity
-TimeoutStartSec=0
+  [Service]
+  Type=notify
+  ExecStart=/usr/bin/docker daemon -H fd://
+  MountFlags=slave
+  LimitNOFILE=1048576
+  LimitNPROC=1048576
+  LimitCORE=infinity
+  TimeoutStartSec=0
 
-[Install]
-WantedBy=multi-user.target
-EOL'
+  [Install]
+  WantedBy=multi-user.target
+  EOL'
 
   sudo bash -c 'cat >/etc/systemd/system/docker.socket <<EOL
-[Unit]
-Description=Docker Socket for the API
-PartOf=docker.service
+  [Unit]
+  Description=Docker Socket for the API
+  PartOf=docker.service
 
-[Socket]
-ListenStream=/var/run/docker.sock
-SocketMode=0660
-SocketUser=root
-SocketGroup=docker
+  [Socket]
+  ListenStream=/var/run/docker.sock
+  SocketMode=0660
+  SocketUser=root
+  SocketGroup=docker
 
-[Install]
-WantedBy=sockets.target
-EOL'
+  [Install]
+  WantedBy=sockets.target
+  EOL'
 
+  echo "\n\n-----Checking GRUB-----\n\n"
+  # Grub stuff for Debian
+  if grep -Fxq 'GRUB_CMDLINE_LINUX=""' /etc/default/grub
+  then
+    sudo sed -i.bak 's/GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"/g' /etc/default/grub
+    echo "\nGrub updated. Please run update-grub and reboot"
+  else
+    echo "\nNo need to update grub. cgroup + swap already added"
+  fi
+
+  echo "\n\n-----Enabling via systemctl-----\n\n"
   sudo systemctl daemon-reload
   sudo systemctl enable docker
-  echo "\n\nDocker installed. Reboot recommended now :)"
+  sudo systemctl start docker
 
-  # Grub stuff
-  sudo sed -i.bak 's/GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"/g' /etc/default/grub
-  echo "\n\nGrub updated. Please run update-grub and reboot"
+  echo "\n\n-----Docker version-----\n\n"
+  docker version
 
+  echo "\n\n-----Docker ps-----\n\n"
+  docker ps
 }
 
 install_dropbox() {
   git clone https://github.com/charliedrage/dockerfiles ~/dockerfiles
   cd ~/dockerfiles/dropbox && docker build -t dropbox .
+  rm -r ~/dockerfiles
   docker run -d -e UID=$(id -u) -v ~/.dropbox:/home/.dropbox -v ~/dropbox:/home/Dropbox --name dropbox dropbox
   sleep 3
   echo "!!!!! Make sure you click the link below then ctrl+c outta there. Afterwards, your dropbox (should) start syncing!!!!!"
@@ -526,6 +555,14 @@ install_dropbox() {
 install_golang() {
   export GO_VERSION=1.6
   export GO_SRC=/usr/local/go
+
+  # purge old src
+  if [[ -d "$GO_SRC" ]]; then
+    sudo rm -rf "$GO_SRC"
+    sudo rm -rf "$GOPATH"
+  fi
+
+  echo -e "\n\tInstalling Go $GO_VERSION\n"
   (curl -sSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | sudo tar -v -C /usr/local -xz)
 }
 
@@ -536,6 +573,7 @@ install_usage() {
   echo "  docker-machine"
   echo "  docker-compose"
   echo "  oc"
+  echo "  kubectl"
   echo "  go"
   echo "  sudo"
   echo "  vim"
@@ -555,6 +593,8 @@ install() {
     install_docker_compose
   elif [[ $cmd == "oc" ]]; then
     install_oc
+  elif [[ $cmd == "kubectl" ]]; then
+    install_kubectl
   elif [[ $cmd == "sudo" ]]; then
     install_sudo
   elif [[ $cmd == "vim" ]]; then
@@ -580,7 +620,7 @@ dev_usage() {
   echo -e "\n\tDev environments\n"
   echo "Usage:"
   echo "  k8s               - single kubernetes cluster"
-  echo "  os                - single openshift cluster"
+  echo "  openshift         - single openshift cluster"
 }
 
 dev() {
@@ -588,7 +628,7 @@ dev() {
 
   if [[ $cmd == "k8s" ]]; then
     dev_k8s ${@:2}
-  elif [[ $cmd == "os" ]]; then
+  elif [[ $cmd == "openshift" ]]; then
     dev_openshift ${@:2}
   else
     dev_usage 
@@ -599,70 +639,106 @@ dev_k8s(){
   local choice=$1
   K8S_VERSION=1.2.0-alpha.7
 
+  if [ ! -f /usr/bin/kubectl ] && [ ! -f /usr/local/bin/kubectl ]; then
+    echo "No kubectl bin exists? Please install."
+    return 1
+  fi
+
   if [[ $choice == "up" ]]; then
-    echo "Launching local k8s cluster"
+    echo "\n-----Launching local k8s cluster-----\n"
     docker run \
-    --volume=/:/rootfs:ro \
-    --volume=/sys:/sys:ro \
-    --volume=/var/lib/docker/:/var/lib/docker:rw \
-    --volume=/var/lib/kubelet/:/var/lib/kubelet:rw \
-    --volume=/var/run:/var/run:rw \
-    --net=host \
-    --pid=host \
-    --privileged=true \
-    -d \
-    gcr.io/google_containers/hyperkube-amd64:v${K8S_VERSION} \
-    /hyperkube kubelet \
-        --containerized \
-        --hostname-override="127.0.0.1" \
-        --address="0.0.0.0" \
-        --api-servers=http://localhost:8080 \
-        --config=/etc/kubernetes/manifests \
-        --cluster-dns=10.0.0.10 \
-        --cluster-domain=cluster.local \
-        --allow-privileged=true --v=2
-    echo "Waiting for k8s containers to initialize" 
+      --volume=/:/rootfs:ro \
+      --volume=/sys:/sys:ro \
+      --volume=/var/lib/docker/:/var/lib/docker:rw \
+      --volume=/var/lib/kubelet/:/var/lib/kubelet:rw \
+      --volume=/var/run:/var/run:rw \
+      --net=host \
+      --pid=host \
+      --privileged=true \
+      -d \
+      gcr.io/google_containers/hyperkube-amd64:v${K8S_VERSION} \
+      /hyperkube kubelet \
+      --containerized \
+      --hostname-override="127.0.0.1" \
+      --address="0.0.0.0" \
+      --api-servers=http://localhost:8080 \
+      --config=/etc/kubernetes/manifests \
+      --cluster-dns=10.0.0.10 \
+      --cluster-domain=cluster.local \
+      --allow-privileged=true --v=2
+
+    echo "\n-----Waiting for Kubernetes to initialize-----\n"
     until nc -z 127.0.0.1 8080;
     do
       echo ...
       sleep 1
     done
-    echo "Launched!"
+    echo "\n-----Launched!-----\n"
+
+    echo "\n-----Setting local dev variables-----\n"
+    kubectl config set-cluster dev --server=http://localhost:8080
+    kubectl config set-context dev --cluster=dev
+    kubectl config use-context dev
+
+    echo "\n-----Ready for development!-----\n"
+
   elif [[ $choice == "down" ]]; then
-    echo "Removing local k8s cluster"
-    docker ps -a | grep 'k8s_' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
-    docker ps -a | grep 'gcr.io/google_containers/hyperkube-amd64' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
+    echo "\n-----Removing all pods-----\n"
+    kubectl delete --all namespaces
+
+    # Run twice due to issue with aufs debian driver
+    echo "\n-----Removing all k8s containers-----\n"
+    for run in {0..2}
+    do
+      docker ps -a | grep 'k8s_' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
+      docker ps -a | grep 'gcr.io/google_containers/hyperkube-amd64' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
+    done
+
+    rm ~/.kube/config
+
   elif [[ $choice == "restart" ]]; then
     dev_k8s down
     dev_k8s up
+
   else
     echo "Kubernetes dev environment"
-    echo "Usage: k8s {up|down|restart}"
+    echo "Usage: dev_k8s {up|down|restart}"
   fi
 }
 
 dev_openshift(){
   local choice=$1
 
+  if [ ! -f /usr/bin/oc ] && [ ! -f /usr/local/bin/oc ]; then
+    echo "No oc bin exists? Please install."
+    return 1
+  fi
+
   if [[ $choice == "up" ]]; then
-    echo "Launching local openshift cluster"
+    echo "\n-----Launching local openshift cluster-----\n"
     docker run -d --name "origin" \
       --privileged --pid=host --net=host \
       -v /:/rootfs:ro -v /var/run:/var/run:rw -v /sys:/sys -v /var/lib/docker:/var/lib/docker:rw \
       -v /var/lib/origin/openshift.local.volumes:/var/lib/origin/openshift.local.volumes \
       openshift/origin start
-    echo "Waiting for openshift to initialize" 
+
+    echo "\n-----Initializing containers, please wait-----\n"
     until nc -z 127.0.0.1 8443;
     do
       echo ...
       sleep 1
     done
-    echo "Launched!"
-    echo "Grapping access token"
+
+    echo "\n-----Launched!-----\n"
+
+    # Access token stuff
+    echo "\n-----Grabbing access tokens-----\n"
     API_KEY=`curl -k -L -D - -u openshift:openshift -H 'X-CSRF-Token: 1' 'https://localhost:8443/oauth/authorize?response_type=token&client_id=openshift-challenging-client' 2>&1 | grep -oP "access_token=\K[^&]*"`
     export API_KEY
-    echo "Access token: " $API_KEY
+    echo $API_KEY
     echo "Token exported to API_KEY"
+
+    echo "\n-----Setting local dev variables-----\n"
     oc config set-credentials openshift --token=$API_KEY
     oc config set-cluster openshift1 --server=https://localhost:8443 --insecure-skip-tls-verify=true
     oc config set-context openshift --cluster=openshift1 --user=openshift
@@ -670,17 +746,25 @@ dev_openshift(){
     oc config set contexts.openshift.namespace foo
     sleep 1
     oc new-project foo
+
+    echo "\n-----Ready for development!-----\n"
+
   elif [[ $choice == "down" ]]; then
-    echo "Removing local openshift cluster"
-    # Remove origin
+    echo "\n-----Removing OpenShift container-----\n"
     docker rm -f origin
 
     # Remove all kubernetes back-end containers created by origin
-    docker ps -a | grep 'gcr.io/google_containers/hyperkube' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
-    docker ps -a | grep 'gcr.io/google_containers/etcd' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
-    docker ps -a | grep 'k8s_' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f || true
+    # Ran twice due to Debian aufs "busy" driver issue
+    echo "\n-----Removing leftover k8s containers-----\n"
+    for run in {0..2}
+    do
+      docker ps -a | grep 'gcr.io/google_containers/hyperkube' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
+      docker ps -a | grep 'gcr.io/google_containers/etcd' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
+      docker ps -a | grep 'k8s_' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f || true
+    done
+
+    rm ~/.kube/config
   elif [[ $choice == "restart" ]]; then
-    echo "Removing and restarting local dev cluster"
     dev_openshift down
     dev_openshift up
   else
