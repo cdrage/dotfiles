@@ -30,12 +30,15 @@ export GOPATH=$HOME/dropbox/dev/go
 export GOBIN=$GOPATH/bin
 export PATH=/usr/local/bin:/usr/local/go/bin:$PATH:$GOPATH/bin:/sbin
 
+# Dropbox / Home path
+export DPATH=$HOME/dropbox
+
 ###################
 # ALIASES
 ###################
 
-alias todo="vim ~/dropbox/txt/todo.txt"
-alias focus="cat ~/dropbox/txt/focus.txt"
+alias todo="vim $DPATH/txt/todo.txt"
+alias focus="cat $DPATH/txt/focus.txt"
 alias agenda="gcalcli agenda 12am 12pm --details description"
 
 # Easier navigation
@@ -47,13 +50,8 @@ alias ~="cd ~" # `cd` is probably faster to type though
 alias -- -="cd -"
 
 # Shortcuts
-alias dl="cd ~/Downloads"
 alias g="git"
-alias h="history"
-alias d='docker'
-alias ta='tmux attach -t'
-alias t='tmux'
-alias tl='tmux list-sessions'
+alias d=gogo # d for dev :)
 
 # ls stuff
 colorflag="--color"
@@ -89,11 +87,6 @@ twitch() {
   livestreamer twitch.tv/$1 $quality
 }
 
-stream() {
-  local url=$1
-  peerflix $1 --vlc
-}
-
 digga() {
   dig +nocmd "$1" any +multiline +noall +answer
 }
@@ -103,7 +96,22 @@ xkcd() {
 }
 
 gogo() {
-  cd $GOPATH/src/$1
+  if [[ $1 == *'/'* ]]; then
+    local devpath=`find $DPATH/dev -maxdepth 3 -type d -path "*$1" | head -n1`
+    local gopath=`find $GOPATH/src -maxdepth 5 -type d -path "*$1" | head -n1`
+  else
+    local devpath=`find $DPATH/dev -maxdepth 1 -type d -iname "$1" | head -n1`
+    local gopath=`find $GOPATH/src -maxdepth 3 -type d -iname "$1" | head -n1`
+  fi
+
+  if [[ ! "$devpath" == "" ]]; then
+    cd $devpath
+  elif [[ ! "$gopath" == "" ]]; then
+    cd $gopath
+  else
+    echo "$1 dir not found"
+    return 1
+  fi
 }
 
 spoof_mac() {
@@ -145,7 +153,7 @@ echo $DATE
 cat >$DATE-$1.markdown <<EOL
 ---
 layout: post
-topic: $3
+category: $3
 title: $2
 date: $DATE2
 ---
@@ -157,159 +165,168 @@ vim +$ +startinsert $DATE-$1.markdown
 
 
 ###################
-# FUNCTIONS: GITHUB
+# FUNCTIONS: GIT
 ###################
 
-git-push() {
-BRANCH=`git symbolic-ref --short HEAD`
-echo "Branch: " $BRANCH
-if [ $? -ne 0 ]; then
-  echo "Unable to get branch name, is this even a git repo?"
-  return 1
-fi
+git-lazy-pr() {
+  git add .
+  git commit
+  git-push
+  git-pr
+}
 
-if [[ "$1" == "-f" ]] 
-then git push -f origin $BRANCH 
-else git push origin $BRANCH
-fi
+git-push() {
+  BRANCH=`git symbolic-ref --short HEAD`
+  echo "Branch: " $BRANCH
+  if [ $? -ne 0 ]; then
+    echo "Unable to get branch name, is this even a git repo?"
+    return 1
+  fi
+
+  if [[ "$1" == "-f" ]] 
+  then git push -f origin $BRANCH 
+  else git push origin $BRANCH
+  fi
 }
 
 # shit only combines commit message not body, TODO
 git-update() {
-LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
-git add . && git commit -m 'update' && git reset --soft HEAD~2 && git commit -m "$LAST_COMMIT_MSG"
+  LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
+  git add . && git commit -m 'update' && git reset --soft HEAD~2 && git commit -m "$LAST_COMMIT_MSG"
 }
 
 # shit only combines commit message not body, TODO
 git-combine-commit() {
-if [ -z "$1" ]
-then
-  echo "Supply the last N commit you want to combine :)"
-  return 1
-fi
-# Combine last N commits with last message
-LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
-git reset --soft HEAD~$1 && git commit -m "$LAST_COMMIT_MSG"
+  if [ -z "$1" ]
+  then
+    echo "Supply the last N commit you want to combine :)"
+    return 1
+  fi
+  # Combine last N commits with last message
+  LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
+  git reset --soft HEAD~$1 && git commit -m "$LAST_COMMIT_MSG"
 }
 
-gh-sync-upstream() {
-UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
-echo "Upstream: " $UPSTREAM_REPO
-if [ -z "$UPSTREAM_REPO" ]; then
-  echo "Unable to get upstream origin url.
-  Set a remote upstream via:
-  'git remote add upstream git@github.com/username/repo.git'"
-  return 1
-fi
+git-sync-upstream() {
+  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+  echo "Upstream: " $UPSTREAM_REPO
+  if [ -z "$UPSTREAM_REPO" ]; then
+    echo "Unable to get upstream origin url.
+    Set a remote upstream via:
+    'git remote add upstream git@github.com/username/repo.git'"
+    return 1
+  fi
 
-git checkout master
-git fetch upstream
-git merge upstream/master
+  git checkout master
+  git fetch upstream
+  git merge upstream/master
 }
 
-gh-patch-commit() {
-if [ -z "$1" ]
-then
-  echo "Supply the commit yo. ex. https://github.com/foo/bar/commit/9b997db51837dd"
-  return 1
-fi
-curl -s "${1}.patch"| git am
+git-patch-commit() {
+  if [ -z "$1" ]
+  then
+    echo "Supply the commit yo. ex. https://github.com/foo/bar/commit/9b997db51837dd"
+    return 1
+  fi
+  curl -s "${1}.patch"| git am
 }
 
 
 # need to clean this up in the future >.> but fuck it, it works.
-gh-pull-pr() {
-if [ -z "$1" ]
-then
-  echo "Supply the PR yo. ex. https://github.com/project/repo/pull/9 or just 9"
-  return 1
-fi
+git-pull-pr() {
+  if [ -z "$1" ]
+  then
+    echo "Supply the PR yo. ex. https://github.com/project/repo/pull/9 or just 9"
+    return 1
+  fi
 
-if [[ $1 == *"https"* ]]
-then
-  echo "URL supplied, converting to a numbah";
-  NUMBAH=`echo "$1" | grep -E -o "\/[0-9]+" | sed 's,/,,g'`
-else
-  NUMBAH=$1
-fi
+  if [[ $1 == *"https"* ]]
+  then
+    echo "URL supplied, converting to a numbah";
+    NUMBAH=`echo "$1" | grep -E -o "\/[0-9]+" | sed 's,/,,g'`
+  else
+    NUMBAH=$1
+  fi
 
-ORIGIN_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
-echo "Origin: " $ORIGIN_REPO
-if [ -z "$ORIGIN_REPO" ]; then
-  echo "Unable to get remote origin url"
-  return 1
-fi
+  ORIGIN_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+  echo "Origin: " $ORIGIN_REPO
+  if [ -z "$ORIGIN_REPO" ]; then
+    echo "Unable to get remote origin url"
+    return 1
+  fi
 
-UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
-echo "Upstream: " $UPSTREAM_REPO
-if [ -z "$UPSTREAM_REPO" ]; then
-  echo "Unable to get upstream origin url.
-  Set a remote upstream via:
-  'git remote add upstream git@github.com/username/repo.git'"
-  return 1
-fi
+  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+  echo "Upstream: " $UPSTREAM_REPO
+  if [ -z "$UPSTREAM_REPO" ]; then
+    echo "Unable to get upstream origin url.
+    Set a remote upstream via:
+    'git remote add upstream git@github.com/username/repo.git'"
+    return 1
+  fi
 
-STATUS=`git status`
-if [[ ! $STATUS == *"nothing to commit, working directory clean"* ]]; then
-  echo "Unable to checkout to master, commit your stuff first?"
-  return 1
-fi
+  STATUS=`git status`
+  if [[ ! $STATUS == *"nothing to commit, working directory clean"* ]]; then
+    echo "Unable to checkout to master, commit your stuff first?"
+    return 1
+  fi
 
-BRANCH_NAME=`curl -s "https://api.github.com/repos/${UPSTREAM_REPO}/pulls/${NUMBAH}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["head"]["ref"]'`
-USERS_NAME=`curl -s "https://api.github.com/repos/${UPSTREAM_REPO}/pulls/${NUMBAH}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["head"]["user"]["login"]'`
+  BRANCH_NAME=`curl -s "https://api.github.com/repos/${UPSTREAM_REPO}/pulls/${NUMBAH}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["head"]["ref"]'`
+  USERS_NAME=`curl -s "https://api.github.com/repos/${UPSTREAM_REPO}/pulls/${NUMBAH}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["head"]["user"]["login"]'`
 
-echo "User's name: " $USERS_NAME
-echo "Pull-request: " $NUMBAH
-echo "Pull-request branch name: " $BRANCH_NAME
-echo ""
+  echo "User's name: " $USERS_NAME
+  echo "Pull-request: " $NUMBAH
+  echo "Pull-request branch name: " $BRANCH_NAME
+  echo ""
 
-git checkout master
-git checkout -b $NUMBAH-$USERS_NAME-$BRANCH_NAME
-curl -s "https://patch-diff.githubusercontent.com/raw/${UPSTREAM_REPO}/pull/${NUMBAH}.patch" | git am
+  git checkout master
+  git checkout -b $NUMBAH-$USERS_NAME-$BRANCH_NAME
+  curl -s "https://patch-diff.githubusercontent.com/raw/${UPSTREAM_REPO}/pull/${NUMBAH}.patch" | git am
 }
 
-gh-pr() {
-if [ -z "$1" ]
-then
-  echo "Nothing specified regarding branch, will be pushing to MASTER branch on UPSTREAM repo"
-  $UPSTREAM_BRANCH = "master"
-else
-  $UPSTREAM_BRANCH = $1
-fi
+git-pr() {
+  if [ -z "$1" ]
+  then
+    echo "Nothing specified regarding branch, will be pushing to MASTER branch on UPSTREAM repo"
+    $UPSTREAM_BRANCH = "master"
+  else
+    $UPSTREAM_BRANCH = $1
+  fi
 
-BRANCH=`git symbolic-ref --short HEAD`
-if [ -z "$BRANCH" ]; then
-  echo "Unable to get branch name, is this even a git repo?"
-  return 1
-fi
-echo "Branch: " $BRANCH
+  BRANCH=`git symbolic-ref --short HEAD`
+  if [ -z "$BRANCH" ]; then
+    echo "Unable to get branch name, is this even a git repo?"
+    return 1
+  fi
+  echo "Branch: " $BRANCH
 
-ORIGIN_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
-echo "Origin: " $ORIGIN_REPO
-if [ -z "$ORIGIN_REPO" ]; then
-  echo "Unable to get remote origin url"
-  return 1
-fi
+  ORIGIN_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+  echo "Origin: " $ORIGIN_REPO
+  if [ -z "$ORIGIN_REPO" ]; then
+    echo "Unable to get remote origin url"
+    return 1
+  fi
 
-UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
-echo "Upstream: " $UPSTREAM_REPO
-if [ -z "$UPSTREAM_REPO" ]; then
-  echo "Unable to get upstream origin url.
-  Set a remote upstream via:
-  'git remote add upstream git@github.com/username/repo.git'"
-  return 1
-fi
+  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+  echo "Upstream: " $UPSTREAM_REPO
+  if [ -z "$UPSTREAM_REPO" ]; then
+    echo "Unable to get upstream origin url.
+    Set a remote upstream via:
+    'git remote add upstream git@github.com/username/repo.git'"
+    return 1
+  fi
 
-hub pull-request -b $UPSTREAM_REPO:$UPSTREAM_BRANCH -h $ORIGIN_REPO:$BRANCH
+  hub pull-request -b $UPSTREAM_REPO:$UPSTREAM_BRANCH -h $ORIGIN_REPO:$BRANCH
 }
 
 #####################
 # FUNCTIONS: DOCKER
 #####################
 
-# removes all stoppped containers && dangling images
+# removes all stoppped, dead, 'created' containers && dangling images
 dcleanup(){
   docker rm $(docker ps --filter status=exited -q 2>/dev/null) 2>/dev/null
+  docker rm $(docker ps --filter status=created -q 2>/dev/null) 2>/dev/null
+  docker rm $(docker ps --filter status=dead -q 2>/dev/null) 2>/dev/null
   docker rmi $(docker images --filter dangling=true -q 2>/dev/null) 2>/dev/null
 }
 
@@ -355,10 +372,7 @@ glances(){
 }
 
 jrl(){
-  docker run -it --rm \
-    -v $HOME/dropbox/txt/txt.aes:/root/txt.aes \
-    -v /etc/localtime:/etc/localtime:ro \
-    $USER/jrl
+  docker run -it --rm -v $HOME/dropbox/txt/txt.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro $USER/jrl
 }
 
 peerflix() {
@@ -369,9 +383,10 @@ peerflix() {
 irc_twitch(){
   del_stopped irc_twitch
   docker run -it \
+    -e TERM=xterm-256color \
     -v /etc/localtime:/etc/localtime:ro \
     --name irc_twitch \
-    wikus/weechat \
+    $USER/weechat \
     -r "/server add twitch irc.twitch.tv -password=$TWITCHOAUTH;/set irc.server.twitch.nicks '$TWITCHUSER';/connect twitch"
 }
 
@@ -383,17 +398,51 @@ yubikey() {
     $USER/ykpersonalize bash
 }
 
-dotfiles_backup() {
-  # Normal shit
-  for file in ~/.{cli,extra,tmux.conf,zshrc}; do
-    cp $file ~/dropbox/dev/dotfiles/
-  done
+##########
+# Install shit
+##########
 
-  # Misc
-  mkdir -p ~/dropbox/dev/dotfiles/misc/terminator/
-  cp ~/.config/terminator/config ~/dropbox/dev/dotfiles/misc/terminator/config
+backup_dotfiles() {
+  for file in ~/.{cli,extra,tmux.conf,zshrc}; do
+    cp $file $DPATH/dev/dotfiles/
+  done
 }
 
+backup_config() {
+  mkdir -p $DPATH/dev/dotfiles/.config/terminator/
+  cp ~/.config/terminator/config $DPATH/dev/dotfiles/.config/terminator/config
+}
+
+backup_vim() {
+  cp -r .vimrc .vim/colors $DPATH/dev/vim/
+}
+
+backup_usage() {
+  echo -e "\n\tBackup shit\n"
+  echo "Usage:"
+  echo "  dotfiles"
+  echo "  config"
+  echo "  vim"
+}
+
+
+backup() {
+  local cmd=$1
+
+  if [[ $cmd == "dotfiles" ]]; then
+    backup_dotfiles
+  elif [[ $cmd == "config" ]]; then
+    backup_config_
+  elif [[ $cmd == "vim" ]]; then
+    backup_vim
+  elif [[ $cmd == "all" ]]; then
+    backup_dotfiles
+    backup_config
+    backup_vim
+  else
+    backup_usage 
+  fi
+}
 
 ##########
 # Install shit
@@ -409,7 +458,7 @@ install_docker_machine() {
 }
 
 install_docker_compose() {
-  RELEASE=1.5.0
+  RELEASE=1.6.2
   curl -L https://github.com/docker/compose/releases/download/$RELEASE/docker-compose-Linux-x86_64 > docker-compose
   sudo mv docker-compose /usr/local/bin/docker-compose
   sudo chmod +x /usr/local/bin/docker-compose
@@ -458,9 +507,16 @@ install_tmux() {
 }
 
 install_docker() {
-  RELEASE=latest
+  if [[ $1 == "master" ]]; then
+    RELEASE=https://master.dockerproject.org/linux/amd64/docker
+  elif [[ ! -z $1 ]]; then
+    RELEASE=https://get.docker.com/builds/Linux/x86_64/docker-$1
+  else
+    RELEASE=https://get.docker.com/builds/Linux/x86_64/docker-latest
+  fi
 
   echo "\n\n-----Installing: $RELEASE of Docker-----\n\n"
+  echo "\n This should work on all OS. Although this script is catered to Debian.\n"
 
   # Prelim
   echo "\n\n-----Installing prelim stuff-----\n\n"
@@ -479,56 +535,47 @@ install_docker() {
 
   # Grab that sweet binary goodness
   echo "\n\n-----Grabbing the Docker binary-----\n\n"
-  curl https://get.docker.com/builds/Linux/x86_64/docker-$RELEASE > docker
+
+  curl $RELEASE > docker
   sudo cp docker /usr/bin/docker
   sudo chmod +x /usr/bin/docker
 
   echo "\n\n-----Installing SystemD files-----\n\n"
   # SystemD
   sudo bash -c 'cat >/etc/systemd/system/docker.service <<EOL
-  [Unit]
-  Description=Docker Application Container Engine
-  Documentation=https://docs.docker.com
-  After=network.target docker.socket
-  Requires=docker.socket
+[Unit]
+Description=Docker Application Container Engine
+Documentation=https://docs.docker.com
+After=network.target docker.socket
+Requires=docker.socket
 
-  [Service]
-  Type=notify
-  ExecStart=/usr/bin/docker daemon -H fd://
-  MountFlags=slave
-  LimitNOFILE=1048576
-  LimitNPROC=1048576
-  LimitCORE=infinity
-  TimeoutStartSec=0
+[Service]
+Type=notify
+ExecStart=/usr/bin/docker daemon -H fd://
+MountFlags=slave
+LimitNOFILE=1048576
+LimitNPROC=1048576
+LimitCORE=infinity
+TimeoutStartSec=0
 
-  [Install]
-  WantedBy=multi-user.target
-  EOL'
+[Install]
+WantedBy=multi-user.target
+EOL'
 
   sudo bash -c 'cat >/etc/systemd/system/docker.socket <<EOL
-  [Unit]
-  Description=Docker Socket for the API
-  PartOf=docker.service
+[Unit]
+Description=Docker Socket for the API
+PartOf=docker.service
 
-  [Socket]
-  ListenStream=/var/run/docker.sock
-  SocketMode=0660
-  SocketUser=root
-  SocketGroup=docker
+[Socket]
+ListenStream=/var/run/docker.sock
+SocketMode=0660
+SocketUser=root
+SocketGroup=docker
 
-  [Install]
-  WantedBy=sockets.target
-  EOL'
-
-  echo "\n\n-----Checking GRUB-----\n\n"
-  # Grub stuff for Debian
-  if grep -Fxq 'GRUB_CMDLINE_LINUX=""' /etc/default/grub
-  then
-    sudo sed -i.bak 's/GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"/g' /etc/default/grub
-    echo "\nGrub updated. Please run update-grub and reboot"
-  else
-    echo "\nNo need to update grub. cgroup + swap already added"
-  fi
+[Install]
+WantedBy=sockets.target
+EOL'
 
   echo "\n\n-----Enabling via systemctl-----\n\n"
   sudo systemctl daemon-reload
@@ -540,13 +587,27 @@ install_docker() {
 
   echo "\n\n-----Docker ps-----\n\n"
   docker ps
+
+  echo "\nDocker installed!\nAlthough you may need to update your GRUB to enable cgroup memory + swap.\nRun 'install docker-grub'"
+}
+
+install_docker_grub() {
+  echo "\n\n-----Checking GRUB-----\n\n"
+  # Grub stuff for Debian
+  if grep -Fxq 'GRUB_CMDLINE_LINUX=""' /etc/default/grub
+  then
+    sudo sed -i.bak 's/GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"/g' /etc/default/grub
+    echo "\nAdded cgroup_enable=memory swapaccount=1 to /etc/default/grub.\nRun update-grub and reboot."
+  else
+    echo "\nParameters are already located in GRUB_CMDLINE_LINUX. Not updating"
+  fi
 }
 
 install_dropbox() {
   git clone https://github.com/charliedrage/dockerfiles ~/dockerfiles
   cd ~/dockerfiles/dropbox && docker build -t dropbox .
   rm -r ~/dockerfiles
-  docker run -d -e UID=$(id -u) -v ~/.dropbox:/home/.dropbox -v ~/dropbox:/home/Dropbox --name dropbox dropbox
+  docker run -d -e UID=$(id -u) -v ~/.dropbox:/home/.dropbox -v $DPATH:/home/Dropbox --name dropbox dropbox
   sleep 3
   echo "!!!!! Make sure you click the link below then ctrl+c outta there. Afterwards, your dropbox (should) start syncing!!!!!"
   docker logs dropbox
@@ -569,9 +630,10 @@ install_golang() {
 install_usage() {
   echo -e "\n\tInstall / Update shit\n"
   echo "Usage:"
-  echo "  docker"
+  echo "  docker [latest, master, 1.10.1]"
   echo "  docker-machine"
   echo "  docker-compose"
+  echo "  docker-grub"
   echo "  oc"
   echo "  kubectl"
   echo "  go"
@@ -591,6 +653,8 @@ install() {
     install_docker_machine
   elif [[ $cmd == "docker-compose" ]]; then
     install_docker_compose
+  elif [[ $cmd == "docker-grub" ]]; then
+    install_docker_grub
   elif [[ $cmd == "oc" ]]; then
     install_oc
   elif [[ $cmd == "kubectl" ]]; then
@@ -683,11 +747,30 @@ dev_k8s(){
     echo "\n-----Ready for development!-----\n"
 
   elif [[ $choice == "down" ]]; then
-    echo "\n-----Removing all pods-----\n"
+    echo "\n-----Removing all namespaces-----\n"
     kubectl delete --all namespaces
+
+    echo "\n-----Remove EVERYTHINGGGG-----\n"
+    kubectl get pvc,pv,svc,rc,po | grep -v 'k8s-\|NAME\|CONTROLLER\|kubernetes' | awk '{print $1}' | xargs --no-run-if-empty kubectl delete pvc,pv,svc,rc,po 2>/dev/null
+
+    echo "\n-----Waiting for everything to terminate-----\n"
+    kubectl get po,svc,rc
+    sleep 3 # give kubectl chance to catch up to api call
+    while [ 1 ]
+    do
+      k8s=`kubectl get po,svc,rc | grep Terminating`
+      if [[ $k8s == "" ]]
+      then
+        break
+      else
+        echo "..."
+      fi
+      sleep 1
+    done
 
     # Run twice due to issue with aufs debian driver
     echo "\n-----Removing all k8s containers-----\n"
+
     for run in {0..2}
     do
       docker ps -a | grep 'k8s_' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
