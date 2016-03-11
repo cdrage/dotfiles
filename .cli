@@ -168,6 +168,17 @@ vim +$ +startinsert $DATE-$1.markdown
 # FUNCTIONS: GIT
 ###################
 
+git-lazy() {
+  if [ -z "$1" ]
+  then
+    echo "Supply a commit message yo"
+    return 1
+  fi
+  git add .
+  git commit -m $1
+  git-push
+}
+
 git-lazy-pr() {
   git add .
   git commit
@@ -414,7 +425,7 @@ backup_config() {
 }
 
 backup_vim() {
-  cp -r .vimrc .vim/colors $DPATH/dev/vim/
+  cp -r ~/.vimrc ~/.vim/colors $DPATH/dev/vim/
 }
 
 backup_usage() {
