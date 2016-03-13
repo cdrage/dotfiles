@@ -13,8 +13,9 @@ export GDK_DPI_SCALE=1
 export QT_DEVICE_PIXEL_RATIO=2
 
 # UTF-8
-export LANG="en_US.UTF-8"
-export LC_ALL="en_US.UTF-8"
+export LC_ALL=en_US.UTF-8
+export LANG=en_US.UTF-8
+export LANGUAGE=en_US.UTF-8
 
 # History
 export HISTSIZE=50000000
@@ -25,13 +26,14 @@ export HISTIGNORE="ls:cd:cd -:pwd:exit:date:* --help"
 # Tmux
 [[ $TMUX = "" ]] && export TERM="xterm-256color"
 
+# Dropbox / Home path
+export DPATH=$HOME/dropbox
+
 # Go
-export GOPATH=$HOME/dropbox/dev/go
+export GOPATH=$DPATH/dev/go
 export GOBIN=$GOPATH/bin
 export PATH=/usr/local/bin:/usr/local/go/bin:$PATH:$GOPATH/bin:/sbin
 
-# Dropbox / Home path
-export DPATH=$HOME/dropbox
 
 ###################
 # ALIASES
