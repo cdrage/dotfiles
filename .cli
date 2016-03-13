@@ -410,7 +410,59 @@ yubikey() {
 }
 
 ##########
-# Install shit
+# SystemD shit
+##########
+
+sysd_docker() {
+  if [ -z "$1" ]
+  then
+    echo "Error. Ex usage: sysd_docker ts3 '-d -v blah/blah'"
+    return 1
+  fi
+
+  sudo bash -c "cat >/etc/systemd/system/$1.service <<EOL
+[Unit]
+Description=$1
+After=docker.service
+Requires=docker.service
+
+[Service]
+TimeoutStartSec=0
+Restart=on-failure
+RestartSec=1min
+KillMode=none
+ExecStartPre=-/usr/bin/docker kill $1
+ExecStartPre=-/usr/bin/docker rm $1
+ExecStart=/usr/bin/docker run --name $1 $2
+ExecStop=/usr/bin/docker stop $1
+
+[Install]
+WantedBy=multi-user.target
+EOL"
+
+  echo "/etc/systemd/system/$1.service added"
+  sudo systemctl enable /etc/systemd/system/$1.service
+  sudo systemctl start /etc/systemd/system/$1.service
+}
+
+sysd_usage() {
+  echo -e "\n\tSystemd generator\n"
+  echo "Usage:"
+  echo "  docker [name] [run command (optional)]"
+}
+
+sysd() {
+  local cmd=$1
+
+  if [[ $cmd == "docker" ]]; then
+    sysd_docker ${@:2}
+  else
+    sysd_usage 
+  fi
+}
+
+##########
+# Backup shit
 ##########
 
 backup_dotfiles() {
