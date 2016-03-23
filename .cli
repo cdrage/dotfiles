@@ -165,6 +165,15 @@ EOL
 vim +$ +startinsert $DATE-$1.markdown
 }
 
+worldtime() {
+  array=("UTC" "America/Toronto" "Asia/Kolkata")
+  for i in "${array[@]}"
+  do
+    echo $i 
+    TZ=":$i" date +%d\ %H:%M
+  done
+}
+
 
 ###################
 # FUNCTIONS: GIT
@@ -206,6 +215,15 @@ git-push() {
 git-update() {
   LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
   git add . && git commit -m 'update' && git reset --soft HEAD~2 && git commit -m "$LAST_COMMIT_MSG"
+}
+
+git-set-remote() {
+  NAME=`echo "${PWD##*/}"`
+  UPSTREAM_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed -e 's,https://github.com/,,g' | sed -e 's/.git//g'`
+  git remote remove origin
+  git remote remove upstream
+  git remote add origin git@github.com:$GITHUB_USER/$NAME.git
+  git remote add upstream git@github.com:$UPSTREAM_REPO.git
 }
 
 # shit only combines commit message not body, TODO
@@ -300,9 +318,9 @@ git-pr() {
   if [ -z "$1" ]
   then
     echo "Nothing specified regarding branch, will be pushing to MASTER branch on UPSTREAM repo"
-    $UPSTREAM_BRANCH = "master"
+    UPSTREAM_BRANCH="master"
   else
-    $UPSTREAM_BRANCH = $1
+    UPSTREAM_BRANCH=$1
   fi
 
   BRANCH=`git symbolic-ref --short HEAD`
@@ -418,7 +436,7 @@ yubikey() {
 sysd_docker() {
   if [ -z "$1" ]
   then
-    echo "Error. Ex usage: sysd_docker ts3 '-d -v blah/blah'"
+    echo "Error. Ex usage: sysd_docker ts3"
     return 1
   fi
 
@@ -435,14 +453,16 @@ RestartSec=1min
 KillMode=none
 ExecStartPre=-/usr/bin/docker kill $1
 ExecStartPre=-/usr/bin/docker rm $1
-ExecStart=/usr/bin/docker run --name $1 $2
+ExecStart=/usr/bin/docker run --name $1 
 ExecStop=/usr/bin/docker stop $1
 
 [Install]
 WantedBy=multi-user.target
 EOL"
+  sudo vim +13 /etc/systemd/system/$1.service
 
   echo "/etc/systemd/system/$1.service added"
+  sudo systemctl daemon-reload
   sudo systemctl enable /etc/systemd/system/$1.service
   sudo systemctl start /etc/systemd/system/$1.service
 }
@@ -538,7 +558,7 @@ install_oc() {
 }
 
 install_kubectl() {
-  RELEASE=1.1.7
+  RELEASE=1.2.0-beta.1
   wget https://storage.googleapis.com/kubernetes-release/release/v$RELEASE/bin/linux/amd64/kubectl
   sudo mv kubectl /usr/local/bin/
   sudo chmod +x /usr/local/bin/kubectl
@@ -766,10 +786,10 @@ dev() {
 
 dev_k8s(){
   local choice=$1
-  K8S_VERSION=1.2.0-alpha.7
+  K8S_VERSION=1.2.0
 
   if [ ! -f /usr/bin/kubectl ] && [ ! -f /usr/local/bin/kubectl ]; then
-    echo "No kubectl bin exists? Please install."
+    echo "No kubectl bin exists! Install the bin to continue :)."
     return 1
   fi
 
@@ -796,8 +816,8 @@ dev_k8s(){
       --cluster-domain=cluster.local \
       --allow-privileged=true --v=2
 
-    echo "\n-----Waiting for Kubernetes to initialize-----\n"
-    until nc -z 127.0.0.1 8080;
+    echo "\n-----Waiting for k8s to initialize-----\n"
+    until curl 127.0.0.1:8080 &>/dev/null;
     do
       echo ...
       sleep 1
@@ -806,8 +826,9 @@ dev_k8s(){
 
     echo "\n-----Setting local dev variables-----\n"
     kubectl config set-cluster dev --server=http://localhost:8080
-    kubectl config set-context dev --cluster=dev
+    kubectl config set-context dev --cluster=dev --user=default
     kubectl config use-context dev
+    kubectl config set-credentials default --token=foobar
 
     echo "\n-----Ready for development!-----\n"
 
@@ -844,13 +865,18 @@ dev_k8s(){
 
     rm ~/.kube/config
 
+  elif [[ $choice == "gui" ]]; then
+    kubectl create namespace kube-system
+    kubectl create -f "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.2/cluster/addons/dashboard/dashboard-controller.yaml" --namespace=kube-system
+    kubectl create -f "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.2/cluster/addons/dashboard/dashboard-service.yaml" --namespace=kube-system
+
   elif [[ $choice == "restart" ]]; then
     dev_k8s down
     dev_k8s up
 
   else
     echo "Kubernetes dev environment"
-    echo "Usage: dev_k8s {up|down|restart}"
+    echo "Usage: dev_k8s {up|down|gui|restart}"
   fi
 }
 
