@@ -565,14 +565,12 @@ install_kubectl() {
   sudo chmod +x /usr/local/bin/kubectl
 }
 
-install_user_with_sudo() { 
+install_adduser() { 
   if [[ $EUID -ne 0 ]]; then
      echo "This script must be run as root" 1>&2
-     exit 1
   fi
-  if [[ ! -z $1 ]]; then
+  if [[ -z $1 ]]; then
     echo "must provide user as cmd line"
-    exit 1
   fi
   apt-get install sudo
 
@@ -731,7 +729,7 @@ install_usage() {
   echo "  oc"
   echo "  kubectl"
   echo "  go"
-  echo "  sudo"
+  echo "  adduser (with sudo)"
   echo "  vim"
   echo "  terminator"
   echo "  tmux"
@@ -753,8 +751,8 @@ install() {
     install_oc
   elif [[ $cmd == "kubectl" ]]; then
     install_kubectl
-  elif [[ $cmd == "sudo" ]]; then
-    install_sudo
+  elif [[ $cmd == "adduser" ]]; then
+    install_adduser
   elif [[ $cmd == "vim" ]]; then
     install_vim
   elif [[ $cmd == "terminator" ]]; then
