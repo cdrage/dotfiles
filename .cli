@@ -574,11 +574,14 @@ install_adduser() {
   fi
   apt-get install sudo
 
+  mkdir /home/$1
   useradd -d /home/$1 -s /bin/bash $1
+  chown $1:users /home/$1
   adduser $1 sudo 
   { \
     echo -e "$1 ALL=(ALL) NOPASSWD:ALL";
 } >> /etc/sudoers
+  echo "Remember to passwd the user too"
 }
 
 install_vim() {
