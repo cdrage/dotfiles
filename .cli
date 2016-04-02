@@ -752,7 +752,7 @@ install() {
   elif [[ $cmd == "kubectl" ]]; then
     install_kubectl
   elif [[ $cmd == "adduser" ]]; then
-    install_adduser
+    install_adduser ${@:2}
   elif [[ $cmd == "vim" ]]; then
     install_vim
   elif [[ $cmd == "terminator" ]]; then
