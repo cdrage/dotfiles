@@ -565,7 +565,18 @@ install_kubectl() {
   sudo chmod +x /usr/local/bin/kubectl
 }
 
-install_sudo() { 
+install_user_with_sudo() { 
+  if [[ $EUID -ne 0 ]]; then
+     echo "This script must be run as root" 1>&2
+     exit 1
+  fi
+  if [[ ! -z $1 ]]; then
+    echo "must provide user as cmd line"
+    exit 1
+  fi
+  apt-get install sudo
+
+  useradd -d /home/$1 -s /bin/bash $1
   adduser $1 sudo 
   { \
     echo -e "$1 ALL=(ALL) NOPASSWD:ALL";
@@ -870,6 +881,25 @@ dev_k8s(){
 
     rm ~/.kube/config
 
+  elif [[ $choice == "clean" ]]; then
+    echo "\n-----Cleaning / removing all pods and containers from default namespace-----\n"
+    kubectl get pvc,pv,svc,rc,po | grep -v 'k8s-\|NAME\|CONTROLLER\|kubernetes' | awk '{print $1}' | xargs --no-run-if-empty kubectl delete pvc,pv,svc,rc,po 2>/dev/null
+
+    echo "\n-----Waiting for everything to terminate-----\n"
+    kubectl get po,svc,rc
+    sleep 3 # give kubectl chance to catch up to api call
+    while [ 1 ]
+    do
+      k8s=`kubectl get po,svc,rc | grep Terminating`
+      if [[ $k8s == "" ]]
+      then
+        break
+      else
+        echo "..."
+      fi
+      sleep 1
+    done
+
   elif [[ $choice == "gui" ]]; then
     kubectl create -f "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.2/cluster/addons/dashboard/dashboard-controller.yaml" --namespace=kube-system
     kubectl create -f "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.2/cluster/addons/dashboard/dashboard-service.yaml" --namespace=kube-system
@@ -893,9 +923,28 @@ dev_k8s(){
     kubectl create -f ./skydns.yaml
     rm skydns.yaml*
 
+  elf
+
   elif [[ $choice == "restart" ]]; then
     dev_k8s down
     dev_k8s up
+
+  elif [[ $choice == "pv" ]]; then
+    mkdir -p /tmp/foobar
+    cat <<EOF | kubectl create -f -
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: foobar
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Recycle
+  hostPath:
+    path: /tmp/foobar
+EOF
 
   else
     echo "Kubernetes dev environment"
