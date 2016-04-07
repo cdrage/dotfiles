@@ -280,13 +280,7 @@ git-pull-pr() {
     NUMBAH=$1
   fi
 
-  ORIGIN_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
-  echo "Origin: " $ORIGIN_REPO
-  if [ -z "$ORIGIN_REPO" ]; then
-    echo "Unable to get remote origin url"
-    return 1
-  fi
-
+  # Check that there is a remote upstream set
   UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
   echo "Upstream: " $UPSTREAM_REPO
   if [ -z "$UPSTREAM_REPO" ]; then
@@ -296,23 +290,7 @@ git-pull-pr() {
     return 1
   fi
 
-  STATUS=`git status`
-  if [[ ! $STATUS == *"nothing to commit, working directory clean"* ]]; then
-    echo "Unable to checkout to master, commit your stuff first?"
-    return 1
-  fi
-
-  BRANCH_NAME=`curl -s "https://api.github.com/repos/${UPSTREAM_REPO}/pulls/${NUMBAH}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["head"]["ref"]'`
-  USERS_NAME=`curl -s "https://api.github.com/repos/${UPSTREAM_REPO}/pulls/${NUMBAH}" | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["head"]["user"]["login"]'`
-
-  echo "User's name: " $USERS_NAME
-  echo "Pull-request: " $NUMBAH
-  echo "Pull-request branch name: " $BRANCH_NAME
-  echo ""
-
-  git checkout master
-  git checkout -b $NUMBAH-$USERS_NAME-$BRANCH_NAME
-  curl -s "https://patch-diff.githubusercontent.com/raw/${UPSTREAM_REPO}/pull/${NUMBAH}.patch" | git am
+  git fetch upstream pull/$NUMBAH/head:pr_$NUMBAH && git checkout pr_$NUMBAH
 }
 
 git-pr() {
@@ -386,21 +364,19 @@ del_stopped(){
 
 mutt(){
   docker run -it --rm \
-    -e TERM=xterm-256color \
-    -e MUTT \
+    -e TERM \
     -e MUTT_NAME \
+    -e MUTT_EMAIL \
     -e MUTT_PASS \
-    -e MUTT_FROM \
-    -e MUTT_SMTP \
-    -e MUTT_IMAP \
     -v $HOME/.gnupg:/home/user/.gnupg \
-    -v $HOME/dropbox/etc/aliases.txt:/home/user/.mutt/aliases.txt \
+    -v $HOME/dropbox/etc/signature:/home/user/.mutt/signature \
+    -v $HOME/dropbox/etc/aliases:/home/user/.mutt/aliases \
     -v /etc/localtime:/etc/localtime:ro \
     $USER/mutt
 }
 
 glances(){
-  docker run --rm -it -e TERM=xterm-256color --pid=host --ipc=host --net=host --privileged $USER/glances
+  docker run --rm -it -e TERM --pid=host --ipc=host --net=host --privileged $USER/glances
 }
 
 jrl(){
@@ -415,7 +391,7 @@ peerflix() {
 irc_twitch(){
   del_stopped irc_twitch
   docker run -it \
-    -e TERM=xterm-256color \
+    -e TERM \
     -v /etc/localtime:/etc/localtime:ro \
     --name irc_twitch \
     $USER/weechat \
@@ -572,12 +548,15 @@ install_adduser() {
   if [[ -z $1 ]]; then
     echo "must provide user as cmd line"
   fi
-  apt-get install sudo
+  apt-get install sudo -y
 
   mkdir /home/$1
   useradd -d /home/$1 -s /bin/bash $1
   chown $1:users /home/$1
   adduser $1 sudo 
+  mkdir /home/$1/.ssh
+  cp ~/.ssh/authorized_keys /home/$1/.ssh/
+  chown -R $1:$1 /home/$1/.ssh
   { \
     echo -e "$1 ALL=(ALL) NOPASSWD:ALL";
 } >> /etc/sudoers
@@ -618,7 +597,11 @@ install_docker() {
 
   # Prelim
   echo "\n\n-----Installing prelim stuff-----\n\n"
-  sudo apt-get install cgroupfs-mount iptables xz-utils -y
+  if [ -f /etc/redhat-release ]; then
+    sudo yum install iptables libcgroup tar xz selinux-policy -y
+  else
+    sudo apt-get install cgroupfs-mount iptables xz-utils curl -y
+  fi
   sudo groupadd docker
   sudo gpasswd -a $USER docker
 
@@ -708,6 +691,15 @@ install_dropbox() {
   docker logs dropbox
 }
 
+install_weechat_server() {
+ docker run -it -d \
+ -e TERM=xterm-256color \
+ -v /etc/localtime:/etc/localtime:ro \
+ --name weechat \
+ $USER/weechat
+ echo "Now 'docker attach weechat'"
+}
+
 install_golang() {
   export GO_VERSION=1.6
   export GO_SRC=/usr/local/go
@@ -736,6 +728,7 @@ install_usage() {
   echo "  vim"
   echo "  terminator"
   echo "  tmux"
+  echo "  weechat (server)"
 }
 
 
@@ -766,6 +759,8 @@ install() {
     install_dropbox
   elif [[ $cmd == "go" ]]; then
     install_golang
+  elif [[ $cmd == "go" ]]; then
+    install_weechat_server
   else
     install_usage
   fi
@@ -923,9 +918,7 @@ dev_k8s(){
     kubectl get ns
     kubectl create -f ./skydns.yaml
     rm skydns.yaml*
-
-  elf
-
+  
   elif [[ $choice == "restart" ]]; then
     dev_k8s down
     dev_k8s up
