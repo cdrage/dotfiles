@@ -249,9 +249,19 @@ git-sync-upstream() {
     return 1
   fi
 
+  BRANCH=`git symbolic-ref --short HEAD`
+
+  # Sync
+  echo "\nSyncing master\n"
   git checkout master
   git fetch upstream
   git merge upstream/master
+
+  echo "\nGoing back to original working branch\n"
+  # Go back to the original branch
+  git checkout $BRANCH
+
+  echo "\nSync completed\n"
 }
 
 git-patch-commit() {
@@ -482,6 +492,7 @@ backup_vim() {
 backup_usage() {
   echo -e "\n\tBackup shit\n"
   echo "Usage:"
+  echo "  all"
   echo "  dotfiles"
   echo "  config"
   echo "  vim"
@@ -593,13 +604,16 @@ install_docker() {
   fi
 
   echo "\n\n-----Installing: $RELEASE of Docker-----\n\n"
-  echo "\n This should work on all OS. Although this script is catered to Debian.\n"
+  echo "\n This only works on Debian / Ubuntu distros \n"
+  echo "\n Unless you disable selinux on Fedora/CentOS, then it'll work on there too :) \n"
 
   # Prelim
   echo "\n\n-----Installing prelim stuff-----\n\n"
   if [ -f /etc/redhat-release ]; then
-    sudo yum install iptables libcgroup tar xz selinux-policy -y
+    echo "Running on Red Hat-style operating systems"
+    sudo yum install iptables libcgroup tar xz -y
   else
+    echo "Running on Debian/Ubuntu-style operating systems"
     sudo apt-get install cgroupfs-mount iptables xz-utils curl -y
   fi
   sudo groupadd docker
@@ -941,8 +955,17 @@ spec:
 EOF
 
   else
-    echo "Kubernetes dev environment"
-    echo "Usage: dev_k8s {up|down|restart|gui|dns}"
+    echo "Kubernetes devlopment environment"
+    echo "\nUsage: "
+    echo " dev_k8s {up|down|restart|clean|gui|dns|pv}"
+    echo "\nMethods: "
+    echo " up"
+    echo " down"
+    echo " restart"
+    echo " clean - returns k8s env to a clean slate"
+    echo " gui - ui for k8s at localhost:9090"
+    echo " dns - deployment of skydns / name resolution"
+    echo " pv - creates a 20Gb persistent volume named foobar at /tmp/foobar"
   fi
 }
 
