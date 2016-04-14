@@ -598,22 +598,23 @@ install_docker() {
   if [[ $1 == "master" ]]; then
     RELEASE=https://master.dockerproject.org/linux/amd64/docker
   elif [[ ! -z $1 ]]; then
-    RELEASE=https://get.docker.com/builds/Linux/x86_64/docker-$1
+    RELEASE=https://get.docker.com/builds/Linux/x86_64/docker-$1.tgz
   else
-    RELEASE=https://get.docker.com/builds/Linux/x86_64/docker-latest
+    RELEASE=https://get.docker.com/builds/Linux/x86_64/docker-latest.tgz
   fi
 
   echo "\n\n-----Installing: $RELEASE of Docker-----\n\n"
+  echo "\n This installs only versions 1.11 and up since we're using .tar.gz now with the multiple binaries:)\n"
   echo "\n This only works on Debian / Ubuntu distros \n"
   echo "\n Unless you disable selinux on Fedora/CentOS, then it'll work on there too :) \n"
 
   # Prelim
   echo "\n\n-----Installing prelim stuff-----\n\n"
   if [ -f /etc/redhat-release ]; then
-    echo "Running on Red Hat-style operating systems"
+    echo "\nRunning on Red Hat-style operating systems\n"
     sudo yum install iptables libcgroup tar xz -y
   else
-    echo "Running on Debian/Ubuntu-style operating systems"
+    echo "\nRunning on Debian/Ubuntu-style operating systems\n"
     sudo apt-get install cgroupfs-mount iptables xz-utils curl -y
   fi
   sudo groupadd docker
@@ -631,13 +632,14 @@ install_docker() {
   # Grab that sweet binary goodness
   echo "\n\n-----Grabbing the Docker binary-----\n\n"
 
-  curl $RELEASE > docker
-  sudo cp docker /usr/bin/docker
-  sudo chmod +x /usr/bin/docker
+  curl $RELEASE > docker.tgz
+  tar -xvzf docker.tgz
+  sudo mv docker/* /usr/bin/
 
   echo "\n\n-----Installing SystemD files-----\n\n"
   # SystemD
   sudo bash -c 'cat >/etc/systemd/system/docker.service <<EOL
+# https://github.com/docker/docker/blob/master/contrib/init/systemd/docker.service
 [Unit]
 Description=Docker Application Container Engine
 Documentation=https://docs.docker.com
@@ -652,12 +654,14 @@ LimitNOFILE=1048576
 LimitNPROC=1048576
 LimitCORE=infinity
 TimeoutStartSec=0
+Delegate=yes
 
 [Install]
 WantedBy=multi-user.target
 EOL'
 
   sudo bash -c 'cat >/etc/systemd/system/docker.socket <<EOL
+# https://github.com/docker/docker/blob/master/contrib/init/systemd/docker.socket
 [Unit]
 Description=Docker Socket for the API
 PartOf=docker.service
@@ -955,7 +959,7 @@ spec:
 EOF
 
   else
-    echo "Kubernetes devlopment environment"
+    echo "Kubernetes dev environment"
     echo "\nUsage: "
     echo " dev_k8s {up|down|restart|clean|gui|dns|pv}"
     echo "\nMethods: "
