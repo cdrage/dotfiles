@@ -211,6 +211,22 @@ git-push() {
   fi
 }
 
+git-checkout() {
+  if [ -z "$1" ]
+  then
+    echo "Must provide branch name"
+    return 1
+  fi
+
+  if [ -z "$2" ]
+  then
+    echo "Checking out from master"
+    git checkout master
+  fi
+
+  git checkout -b  $1
+}
+
 # shit only combines commit message not body, TODO
 git-update() {
   LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
@@ -864,7 +880,7 @@ dev_k8s(){
     kubectl delete --all namespaces
 
     echo "\n-----Remove EVERYTHINGGGG-----\n"
-    kubectl get pvc,pv,svc,rc,po --all-namespaces | grep -v 'k8s-\|NAME\|CONTROLLER\|kubernetes' | awk '{print $2}' | xargs --no-run-if-empty kubectl delete pvc,pv,svc,rc,po 2>/dev/null
+    kubectl get pvc,pv,svc,rc,po --all-namespaces | grep -v 'k8s-\|NAME\|CONTROLLER\|kubernetes' | awk '{print $2}' | xargs --no-run-if-empty kubectl delete pvc,pv,svc,rc,po --grace-period=1 2>/dev/null
 
     echo "\n-----Waiting for everything to terminate-----\n"
     kubectl get po,svc,rc --all-namespaces
@@ -897,7 +913,7 @@ dev_k8s(){
 
   elif [[ $choice == "clean" ]]; then
     echo "\n-----Cleaning / removing all pods and containers from default namespace-----\n"
-    kubectl get pvc,pv,svc,rc,po | grep -v 'k8s-\|NAME\|CONTROLLER\|kubernetes' | awk '{print $1}' | xargs --no-run-if-empty kubectl delete pvc,pv,svc,rc,po 2>/dev/null
+    kubectl get pvc,pv,svc,rc,po | grep -v 'k8s-\|NAME\|CONTROLLER\|kubernetes' | awk '{print $1}' | xargs --no-run-if-empty kubectl delete pvc,pv,svc,rc,po --grace-period=1 2>/dev/null
 
     echo "\n-----Waiting for everything to terminate-----\n"
     kubectl get po,svc,rc
