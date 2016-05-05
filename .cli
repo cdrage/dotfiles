@@ -174,6 +174,13 @@ worldtime() {
   done
 }
 
+check-domain() {
+  whois $1 | egrep -q '^No match|^NOT FOUND|^Not fo|AVAILABLE|^No Data Fou|has not been regi|No entri' 
+  if [ $? -eq 0 ]; then 
+      echo "$1 : available" 
+  fi 
+}
+
 
 ###################
 # FUNCTIONS: GIT
@@ -395,8 +402,8 @@ mutt(){
     -e MUTT_EMAIL \
     -e MUTT_PASS \
     -v $HOME/.gnupg:/home/user/.gnupg \
-    -v $HOME/dropbox/etc/signature:/home/user/.mutt/signature \
-    -v $HOME/dropbox/etc/aliases:/home/user/.mutt/aliases \
+    -v $DPATH/etc/signature:/home/user/.mutt/signature \
+    -v $DPATH/etc/aliases:/home/user/.mutt/aliases \
     -v /etc/localtime:/etc/localtime:ro \
     $USER/mutt
 }
@@ -406,7 +413,7 @@ glances(){
 }
 
 jrl(){
-  docker run -it --rm -v $HOME/dropbox/txt/txt.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro $USER/jrl
+  docker run -it --rm -v $DPATH/txt/txt.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro $USER/jrl
 }
 
 peerflix() {
@@ -436,54 +443,80 @@ yubikey() {
 # SystemD shit
 ##########
 
-sysd_docker() {
-  if [ -z "$1" ]
-  then
-    echo "Error. Ex usage: sysd_docker ts3"
-    return 1
-  fi
-
+sysd_coreos() {
   sudo bash -c "cat >/etc/systemd/system/$1.service <<EOL
 [Unit]
 Description=$1
+#After=etcd.service
 After=docker.service
-Requires=docker.service
 
 [Service]
 TimeoutStartSec=0
-Restart=on-failure
-RestartSec=1min
-KillMode=none
 ExecStartPre=-/usr/bin/docker kill $1
 ExecStartPre=-/usr/bin/docker rm $1
+#ExecStartPre=-/usr/bin/docker pull $1
 ExecStart=/usr/bin/docker run --name $1 
 ExecStop=/usr/bin/docker stop $1
 
 [Install]
 WantedBy=multi-user.target
 EOL"
-  sudo vim +13 /etc/systemd/system/$1.service
+}
 
-  echo "/etc/systemd/system/$1.service added"
-  sudo systemctl daemon-reload
-  sudo systemctl enable /etc/systemd/system/$1.service
-  sudo systemctl start /etc/systemd/system/$1.service
+sysd_bin() {
+  sudo bash -c "cat >/etc/systemd/system/$1.service <<EOL
+[Unit]
+Description=$1
+
+[Service]
+TimeoutStartSec=0
+Restart=on-failure
+RestartSec=1min
+KillMode=none
+ExecStart=/usr/bin/$1
+
+[Install]
+WantedBy=multi-user.target
+EOL"
 }
 
 sysd_usage() {
   echo -e "\n\tSystemd generator\n"
-  echo "Usage:"
-  echo "  docker [name] [run command (optional)]"
+  echo "Service gen:"
+  echo "  coreos [name]"
+  echo "  bin [name]"
+  return 1
+}
+
+sysd_service() {
+  if [ -z "$1" ]
+  then
+    echo "Must provide name of service to be generated"
+    return 1
+  fi
+  # Modify the service file
+  sudo vim /etc/systemd/system/$1.service
+
+  # Add it and deploy
+  echo "/etc/systemd/system/$1.service added"
+  sudo systemctl daemon-reload
+  sudo systemctl enable $1.service
+  sudo systemctl start $1.service
 }
 
 sysd() {
   local cmd=$1
 
-  if [[ $cmd == "docker" ]]; then
-    sysd_docker ${@:2}
+  if [[ $cmd == "coreos" ]]; then
+    sysd_coreos $2
+    sysd_service $2
+  elif [[ $cmd == "bin" ]]; then
+    sysd_bin $2
+    sysd_service $2
   else
     sysd_usage 
   fi
+
 }
 
 ##########
@@ -719,10 +752,9 @@ install_docker_grub() {
 }
 
 install_dropbox() {
-  docker run -d -e UID=$(id -u) -v ~/.dropbox:/home/.dropbox -v $DPATH:/home/Dropbox --restart=always --name dropbox $USER/dropbox
-  sleep 5
-  echo "!!!!! Make sure you click the link below then ctrl+c outta there. Afterwards, your dropbox (should) start syncing!!!!!"
-  docker logs dropbox
+  # Source: https://github.com/janeczku/docker-dropbox
+  docker run -d -v $DPATH:/dbox/Dropbox --restart=always --name dropbox janeczku/dropbox
+  docker logs -f dropbox
 }
 
 install_weechat_server() {
