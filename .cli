@@ -595,7 +595,7 @@ install_oc() {
 }
 
 install_kubectl() {
-  RELEASE=1.2.0-beta.1
+  RELEASE=1.2.3
   wget https://storage.googleapis.com/kubernetes-release/release/v$RELEASE/bin/linux/amd64/kubectl
   sudo mv kubectl /usr/local/bin/
   sudo chmod +x /usr/local/bin/kubectl
@@ -857,7 +857,7 @@ dev() {
 
 dev_k8s(){
   local choice=$1
-  K8S_VERSION=1.2.0
+  K8S_VERSION=1.2.3
 
   if [ ! -f /usr/bin/kubectl ] && [ ! -f /usr/local/bin/kubectl ]; then
     echo "No kubectl bin exists! Install the bin to continue :)."
