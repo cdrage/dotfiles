@@ -40,7 +40,7 @@ export PATH=/usr/local/bin:/usr/local/go/bin:$PATH:$GOPATH/bin:/sbin
 ###################
 
 alias todo="vim $DPATH/txt/todo.txt"
-alias focus="cat $DPATH/txt/focus.txt"
+alias focus="vim $DPATH/txt/focus.txt"
 alias agenda="gcalcli agenda 12am 12pm --details description"
 
 # Easier navigation
@@ -166,11 +166,13 @@ vim +$ +startinsert $DATE-$1.markdown
 }
 
 worldtime() {
-  array=("UTC" "America/Toronto" "Asia/Kolkata")
-  for i in "${array[@]}"
-  do
-    echo $i 
+  let ctr=1
+  array=("UTC" "US/Pacific" "America/Toronto" "Asia/Kolkata")
+  time=("UTC  " "PST  " "EST  " "India")
+  for i in "${array[@]}"; do
+    echo -e "${time[$ctr]} \c"
     TZ=":$i" date +%d\ %H:%M
+    ctr=$((ctr + 1))
   done
 }
 
@@ -240,12 +242,24 @@ git-update() {
   git add . && git commit -m 'update' && git reset --soft HEAD~2 && git commit -m "$LAST_COMMIT_MSG"
 }
 
-git-set-remote() {
+git-set-upstream-remote() {
+  echo "Previous remote:"
+  git remote -v
   NAME=`echo "${PWD##*/}"`
   UPSTREAM_REPO=`git config --get remote.origin.url | sed -e 's,git://github.com/,,g' | sed -e 's,https://github.com/,,g' | sed -e 's/.git//g'`
   git remote remove origin
   git remote add origin git@github.com:$GITHUB_USER/$NAME.git
   git remote add upstream git@github.com:$UPSTREAM_REPO.git
+  echo "Remote git's set"
+  git remote -v
+}
+
+git-set-remote() {
+  echo "Previous remote:"
+  git remote -v
+  NAME=`echo "${PWD##*/}"`
+  git remote remove origin
+  git remote add origin git@github.com:$GITHUB_USER/$NAME.git
   echo "Remote git's set"
   git remote -v
 }
@@ -595,7 +609,7 @@ install_oc() {
 }
 
 install_kubectl() {
-  RELEASE=1.2.3
+  RELEASE=1.2.4
   wget https://storage.googleapis.com/kubernetes-release/release/v$RELEASE/bin/linux/amd64/kubectl
   sudo mv kubectl /usr/local/bin/
   sudo chmod +x /usr/local/bin/kubectl
@@ -643,10 +657,28 @@ install_tmux() {
   cp .tmux.conf ~/
 }
 
+install_docker_master() {
+
+    RELEASE=https://master.dockerproject.org/linux/amd64
+
+    # Master binary
+    curl $RELEASE/docker > docker
+    sudo mv docker /usr/bin/docker
+    sudo chmod +x /usr/bin/docker
+
+    # The rest of the binaries
+    # Note: docker = client, dockerd = daemon now...
+    array=( dockerd docker-containerd docker-containerd-shim docker-containerd-ctr docker-runc)
+    for i in "${array[@]}"
+    do
+      curl $RELEASE/$i > $i
+      sudo mv $i /usr/bin/$i
+      sudo chmod +x /usr/bin/$i
+    done
+}
+
 install_docker() {
-  if [[ $1 == "master" ]]; then
-    RELEASE=https://master.dockerproject.org/linux/amd64/docker
-  elif [[ ! -z $1 ]]; then
+  if [[ ! -z $1 ]]; then
     RELEASE=https://get.docker.com/builds/Linux/x86_64/docker-$1.tgz
   else
     RELEASE=https://get.docker.com/builds/Linux/x86_64/docker-latest.tgz
@@ -681,9 +713,13 @@ install_docker() {
   # Grab that sweet binary goodness
   echo "\n\n-----Grabbing the Docker binary-----\n\n"
 
-  curl $RELEASE > docker.tgz
-  tar -xvzf docker.tgz
-  sudo mv docker/* /usr/bin/
+  if [[ $1 == "master" ]]; then
+    install_docker_master
+  else
+    curl $RELEASE > docker.tgz
+    tar -xvzf docker.tgz
+    sudo mv docker/* /usr/bin/
+  fi
 
   echo "\n\n-----Installing SystemD files-----\n\n"
   # SystemD
@@ -751,9 +787,10 @@ install_docker_grub() {
   fi
 }
 
+# dropbox is a HUGE cpu hogger. limiting that shit.
 install_dropbox() {
   # Source: https://github.com/janeczku/docker-dropbox
-  docker run -d -v $DPATH:/dbox/Dropbox --restart=always --name dropbox janeczku/dropbox
+  docker run -d -v $DPATH:/dbox/Dropbox --cpu-shares 256 --restart=always --name dropbox janeczku/dropbox
   docker logs -f dropbox
 }
 
@@ -767,14 +804,15 @@ install_weechat_server() {
 }
 
 install_golang() {
-  export GO_VERSION=1.6
+  export GO_VERSION=1.6.2
   export GO_SRC=/usr/local/go
 
   # purge old src
-  if [[ -d "$GO_SRC" ]]; then
-    sudo rm -rf "$GO_SRC"
-    sudo rm -rf "$GOPATH"
-  fi
+  # NOPE.jpeg
+  #if [[ -d "$GO_SRC" ]]; then
+  #  sudo rm -rf "$GO_SRC"
+  #  sudo rm -rf "$GOPATH"
+  #fi
 
   echo -e "\n\tInstalling Go $GO_VERSION\n"
   (curl -sSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | sudo tar -v -C /usr/local -xz)
@@ -837,10 +875,10 @@ install() {
 ##########
 
 dev_usage() {
-  echo -e "\n\tDev environments\n"
-  echo "Usage:"
-  echo "  k8s               - single kubernetes cluster"
-  echo "  openshift         - single openshift cluster"
+  echo -e "\nDevelopment / cluster environments\n"
+  echo "Commands:"
+  echo "  k8s"
+  echo "  openshift"
 }
 
 dev() {
@@ -857,7 +895,7 @@ dev() {
 
 dev_k8s(){
   local choice=$1
-  K8S_VERSION=1.2.3
+  K8S_VERSION=1.2.4
 
   if [ ! -f /usr/bin/kubectl ] && [ ! -f /usr/local/bin/kubectl ]; then
     echo "No kubectl bin exists! Install the bin to continue :)."
@@ -865,6 +903,7 @@ dev_k8s(){
   fi
 
   if [[ $choice == "up" ]]; then
+
     echo "\n-----Launching local k8s cluster-----\n"
     docker run \
       --volume=/:/rootfs:ro \
@@ -879,14 +918,13 @@ dev_k8s(){
       -d \
       gcr.io/google_containers/hyperkube-amd64:v${K8S_VERSION} \
       /hyperkube kubelet \
-      --containerized \
-      --hostname-override="127.0.0.1" \
-      --address="0.0.0.0" \
-      --api-servers=http://localhost:8080 \
-      --config=/etc/kubernetes/manifests \
-      --cluster-dns=10.0.0.10 \
-      --cluster-domain=cluster.local \
-      --allow-privileged=true --v=2
+        --containerized \
+        --hostname-override=127.0.0.1 \
+        --api-servers=http://localhost:8080 \
+        --config=/etc/kubernetes/manifests \
+        --cluster-dns=10.0.0.10 \
+        --cluster-domain=cluster.local \
+        --allow-privileged --v=2
 
     echo "\n-----Waiting for k8s to initialize-----\n"
     until curl 127.0.0.1:8080 &>/dev/null;
@@ -1010,7 +1048,7 @@ EOF
     echo "Kubernetes dev environment"
     echo "\nUsage: "
     echo " dev_k8s {up|down|restart|clean|gui|dns|pv}"
-    echo "\nMethods: "
+    echo "\nCommands: "
     echo " up"
     echo " down"
     echo " restart"
@@ -1084,6 +1122,11 @@ dev_openshift(){
     dev_openshift up
   else
     echo "OpenShift dev environment"
-    echo "Usage: openshift {up|down|restart}"
+    echo "\nUsage: "
+    echo " openshift {up|down|restart}"
+    echo "\nCommands: "
+    echo " up"
+    echo " down"
+    echo " restart"
   fi
 }
