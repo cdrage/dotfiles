@@ -553,8 +553,12 @@ backup_vim() {
 }
 
 backup_usage() {
-  echo -e "\n\tBackup shit\n"
+  echo "Backup shit"
+  echo ""
   echo "Usage:"
+  echo " backup {all|dotfiles|config|vim}"
+  echo ""
+  echo "Commands:"
   echo "  all"
   echo "  dotfiles"
   echo "  config"
@@ -568,7 +572,7 @@ backup() {
   if [[ $cmd == "dotfiles" ]]; then
     backup_dotfiles
   elif [[ $cmd == "config" ]]; then
-    backup_config_
+    backup_config
   elif [[ $cmd == "vim" ]]; then
     backup_vim
   elif [[ $cmd == "all" ]]; then
@@ -867,10 +871,14 @@ install() {
 ##########
 
 dev_usage() {
-  echo -e "\nDevelopment / cluster environments\n"
+  echo "Development / cluster environments"
+  echo ""
+  echo "Usage:"
+  echo " dev {k8s|openshift} {up|down|restart|clean}"
+  echo ""
   echo "Commands:"
-  echo "  k8s"
-  echo "  openshift"
+  echo " k8s"
+  echo " openshift"
 }
 
 dev() {
@@ -1015,9 +1023,11 @@ EOF
 
   else
     echo "Kubernetes dev environment"
-    echo "\nUsage: "
+    echo ""
+    echo "Usage:"
     echo " dev_k8s {up|down|restart|clean|gui|dns|pv}"
-    echo "\nCommands: "
+    echo ""
+    echo "Commands:"
     echo " up"
     echo " down"
     echo " restart"
@@ -1089,9 +1099,11 @@ dev_openshift(){
     dev_openshift up
   else
     echo "OpenShift dev environment"
-    echo "\nUsage: "
+    echo ""
+    echo "Usage:"
     echo " openshift {up|down|restart}"
-    echo "\nCommands: "
+    echo ""
+    echo "Commands:"
     echo " up"
     echo " down"
     echo " restart"
