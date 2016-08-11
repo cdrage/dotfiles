@@ -427,7 +427,7 @@ glances(){
 }
 
 jrl(){
-  docker run -it --rm -v $DPATH/txt/txt.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro $USER/jrl
+  docker run -it --rm -v $DPATH/txt/txt.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
 }
 
 peerflix() {
@@ -787,20 +787,10 @@ install_docker_grub() {
   fi
 }
 
-# dropbox is a HUGE cpu hogger. limiting that shit.
 install_dropbox() {
   # Source: https://github.com/janeczku/docker-dropbox
-  docker run -d -v $DPATH:/dbox/Dropbox --cpu-shares 256 --restart=always --name dropbox janeczku/dropbox
+  docker run -d -v $DPATH:/dbox/Dropbox --restart=always --name dropbox janeczku/dropbox
   docker logs -f dropbox
-}
-
-install_weechat_server() {
- docker run -it -d \
- -e TERM=xterm-256color \
- -v /etc/localtime:/etc/localtime:ro \
- --name weechat \
- $USER/weechat
- echo "Now 'docker attach weechat'"
 }
 
 install_golang() {
@@ -816,6 +806,9 @@ install_golang() {
 
   echo -e "\n\tInstalling Go $GO_VERSION\n"
   (curl -sSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | sudo tar -v -C /usr/local -xz)
+
+  # For sudo / root
+  sudo ln -s /usr/local/go/bin/go /usr/bin/go
 }
 
 install_usage() {
@@ -832,7 +825,6 @@ install_usage() {
   echo "  vim"
   echo "  terminator"
   echo "  tmux"
-  echo "  weechat (server)"
 }
 
 
@@ -895,7 +887,7 @@ dev() {
 
 dev_k8s(){
   local choice=$1
-  K8S_VERSION=1.2.4
+  K8S_VERSION=1.3.4
 
   if [ ! -f /usr/bin/kubectl ] && [ ! -f /usr/local/bin/kubectl ]; then
     echo "No kubectl bin exists! Install the bin to continue :)."
@@ -999,29 +991,6 @@ dev_k8s(){
       fi
       sleep 1
     done
-
-  elif [[ $choice == "gui" ]]; then
-    kubectl create -f "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.2/cluster/addons/dashboard/dashboard-controller.yaml" --namespace=kube-system
-    kubectl create -f "https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.2/cluster/addons/dashboard/dashboard-service.yaml" --namespace=kube-system
-
-  elif [[ $choice == "dns" ]]; then
-    # Set the amount of dns replicas and env variables
-    export DNS_REPLICAS=1
-    export DNS_DOMAIN=cluster.local
-    export DNS_SERVER_IP=10.0.0.10
-
-    # Grab the official dns yaml file
-    wget http://kubernetes.io/docs/getting-started-guides/docker-multinode/skydns.yaml.in -O skydns.yaml.in
-    sed -e "s/{{ pillar\['dns_replicas'\] }}/${DNS_REPLICAS}/g;s/{{ pillar\['dns_domain'\] }}/${DNS_DOMAIN}/g;s/{{ pillar\['dns_server'\] }}/${DNS_SERVER_IP}/g" skydns.yaml.in > ./skydns.yaml
-
-    # Because of https://github.com/kubernetes/kubernetes/issues/23474
-    #dns="\ \ \ \ \ \ \ \ - -nameservers=8.8.8.8:53"
-    #sed -i "73i$dns" skydns.yaml
-
-    # Deploy!
-    kubectl get ns
-    kubectl create -f ./skydns.yaml
-    rm skydns.yaml*
   
   elif [[ $choice == "restart" ]]; then
     dev_k8s down
@@ -1053,8 +1022,6 @@ EOF
     echo " down"
     echo " restart"
     echo " clean - returns k8s env to a clean slate"
-    echo " gui - ui for k8s at localhost:9090"
-    echo " dns - deployment of skydns / name resolution"
     echo " pv - creates a 20Gb persistent volume named foobar at /tmp/foobar"
   fi
 }
