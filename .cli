@@ -78,6 +78,43 @@ alias battery='upower -i /org/freedesktop/UPower/devices/battery_BAT0'
 # FUNCTIONS
 ###################
 
+ask() {
+    # http://djm.me/ask
+    local prompt default REPLY
+
+    while true; do
+
+        if [ "${2:-}" = "Y" ]; then
+            prompt="Y/n"
+            default=Y
+        elif [ "${2:-}" = "N" ]; then
+            prompt="y/N"
+            default=N
+        else
+            prompt="y/n"
+            default=
+        fi
+
+        # Ask the question (not using "read -p" as it uses stderr not stdout)
+        echo -n "$1 [$prompt] "
+
+        # Read the answer (use /dev/tty in case stdin is redirected from somewhere else)
+        read REPLY </dev/tty
+
+        # Default?
+        if [ -z "$REPLY" ]; then
+            REPLY=$default
+        fi
+
+        # Check if the reply is valid
+        case "$REPLY" in
+            Y*|y*) return 0 ;;
+            N*|n*) return 1 ;;
+        esac
+
+    done
+}
+
 twitch() {
   local result=$1
   if [ -n "$2" ]
@@ -419,7 +456,7 @@ mutt(){
     -v $DPATH/etc/signature:/home/user/.mutt/signature \
     -v $DPATH/etc/aliases:/home/user/.mutt/aliases \
     -v /etc/localtime:/etc/localtime:ro \
-    $USER/mutt
+    cdrage/mutt-gmail
 }
 
 glances(){
@@ -432,7 +469,7 @@ jrl(){
 
 peerflix() {
   magnet=$1
-  docker run --rm -it -p 8888:8888 $USER/peerflix $magnet
+  docker run --rm -it -p 8888:8888 cdrage/peerflix $magnet
 }
 
 irc_twitch(){
@@ -512,10 +549,17 @@ sysd_service() {
   sudo vim /etc/systemd/system/$1.service
 
   # Add it and deploy
-  echo "/etc/systemd/system/$1.service added"
-  sudo systemctl daemon-reload
-  sudo systemctl enable $1.service
-  sudo systemctl start $1.service
+  if ask "Would you really like to add this service?"; then
+    sudo systemctl daemon-reload
+    sudo systemctl enable $1.service
+    sudo systemctl start $1.service
+  else
+    sudo rm /etc/systemd/system/$1.service
+  fi
+}
+
+sysd_enable_service() {
+
 }
 
 sysd() {
@@ -1097,15 +1141,35 @@ dev_openshift(){
   elif [[ $choice == "restart" ]]; then
     dev_openshift down
     dev_openshift up
+  elif [[ $choice == "pv" ]]; then
+    # Hack to add a persistent volume for usage within OpenShift
+    cat << EOF > pv
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: foobar
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  hostPath:
+    path: /tmp/foobar
+EOF
+  docker cp pv origin:/tmp/pv
+  rm pv
+  docker exec -it origin oc create -f /tmp/pv
   else
     echo "OpenShift dev environment"
     echo ""
     echo "Usage:"
-    echo " openshift {up|down|restart}"
+    echo " openshift {up|down|restart|pv}"
     echo ""
     echo "Commands:"
     echo " up"
     echo " down"
     echo " restart"
+    echo " pv - create a 20Gi persistent volume within the container at /tmp/foobar"
   fi
 }
