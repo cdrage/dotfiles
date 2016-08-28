@@ -558,10 +558,6 @@ sysd_service() {
   fi
 }
 
-sysd_enable_service() {
-
-}
-
 sysd() {
   local cmd=$1
 
