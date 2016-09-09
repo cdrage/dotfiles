@@ -283,7 +283,7 @@ git-set-upstream-remote() {
   echo "Previous remote:"
   git remote -v
   NAME=`echo "${PWD##*/}"`
-  UPSTREAM_REPO=`git config --get remote.origin.url | sed -e 's,git://github.com/,,g' | sed -e 's,https://github.com/,,g' | sed -e 's/.git//g'`
+  UPSTREAM_REPO=`git config --get remote.origin.url | sed -e 's,git://github.com/,,g' | sed -e 's,https://github.com/,,g' | sed -e 's,\.git,,g' | sed -e 's,git@github.com:,,g'`
   git remote remove origin
   git remote add origin git@github.com:$GITHUB_USER/$NAME.git
   git remote add upstream git@github.com:$UPSTREAM_REPO.git
@@ -314,7 +314,7 @@ git-combine-commit() {
 }
 
 git-sync-upstream() {
-  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's,git@github.com:,,g' | sed -e 's/\.git//g'`
   echo "Upstream: " $UPSTREAM_REPO
   if [ -z "$UPSTREAM_REPO" ]; then
     echo "Unable to get upstream origin url.
@@ -365,7 +365,7 @@ git-pull-pr() {
   fi
 
   # Check that there is a remote upstream set
-  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/\.git//g'`
   echo "Upstream: " $UPSTREAM_REPO
   if [ -z "$UPSTREAM_REPO" ]; then
     echo "Unable to get upstream origin url.
@@ -393,14 +393,14 @@ git-pr() {
   fi
   echo "Branch: " $BRANCH
 
-  ORIGIN_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+  ORIGIN_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed -e 's/\.git//g'`
   echo "Origin: " $ORIGIN_REPO
   if [ -z "$ORIGIN_REPO" ]; then
     echo "Unable to get remote origin url"
     return 1
   fi
 
-  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/.git//g'`
+  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/\.git//g'`
   echo "Upstream: " $UPSTREAM_REPO
   if [ -z "$UPSTREAM_REPO" ]; then
     echo "Unable to get upstream origin url.
@@ -459,10 +459,6 @@ mutt(){
     cdrage/mutt-gmail
 }
 
-glances(){
-  docker run --rm -it -e TERM --pid=host --ipc=host --net=host --privileged $USER/glances
-}
-
 jrl(){
   docker run -it --rm -v $DPATH/txt/txt.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
 }
@@ -478,7 +474,7 @@ irc_twitch(){
     -e TERM \
     -v /etc/localtime:/etc/localtime:ro \
     --name irc_twitch \
-    $USER/weechat \
+    cdrage/weechat \
     -r "/server add twitch irc.twitch.tv -password=$TWITCHOAUTH;/set irc.server.twitch.nicks '$TWITCHUSER';/connect twitch"
 }
 
@@ -487,7 +483,7 @@ yubikey() {
     --device /dev/bus/usb \
     --device /dev/usb \
     --name ykpersonalize \
-    $USER/ykpersonalize bash
+    cdrage/ykpersonalize bash
 }
 
 ##########
