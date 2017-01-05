@@ -40,8 +40,7 @@ export PATH=/usr/local/bin:/usr/local/go/bin:$PATH:$GOPATH/bin:/sbin
 ###################
 
 alias todo="vim $DPATH/txt/todo.txt"
-alias focus="vim $DPATH/txt/focus.txt"
-alias agenda="gcalcli agenda 12am 12pm --details description"
+alias notes="vim $DPATH/txt/notes.txt"
 
 # Easier navigation
 alias ..="cd .."
@@ -96,9 +95,11 @@ ask() {
         fi
 
         # Ask the question (not using "read -p" as it uses stderr not stdout)
+        echo "====="
+        echo -n "$1"
+        echo -n "[$prompt]"
         echo ""
-        echo -n "$1 [$prompt] "
-        echo ""
+        echo "====="
 
         # Read the answer (use /dev/tty in case stdin is redirected from somewhere else)
         read REPLY </dev/tty
@@ -115,6 +116,7 @@ ask() {
         esac
 
     done
+    echo ""
 }
 
 twitch() {
@@ -195,7 +197,7 @@ cat >$DATE-$1.markdown <<EOL
 ---
 layout: post
 category: $3
-title: $2
+title: "$2"
 date: $DATE2
 ---
 
@@ -391,29 +393,35 @@ git-pr() {
     echo "Unable to get branch name, is this even a git repo?"
     return 1
   fi
-  echo "Branch: " $BRANCH
 
-  ORIGIN_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed -e 's/\.git//g'`
-  echo "Origin: " $ORIGIN_REPO
+  ORIGIN_REPO=`git config --get remote.origin.url | sed -e 's/git@github.com://g' | sed 's/\..\{3\}$//'`
   if [ -z "$ORIGIN_REPO" ]; then
     echo "Unable to get remote origin url"
     return 1
   fi
 
-  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/\.git//g'`
-  echo "Upstream: " $UPSTREAM_REPO
+  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed 's/\..\{3\}$//'`
   if [ -z "$UPSTREAM_REPO" ]; then
     echo "Unable to get upstream origin url.
     Set a remote upstream via:
     'git remote add upstream git@github.com/username/repo.git'"
     return 1
   fi
+
+  echo "==== INFO ===="
+  echo "Branch: " $BRANCH
+  echo "Origin: " $ORIGIN_REPO
+  echo "Upstream: " $UPSTREAM_REPO
+  echo "=============="
+
+
+  echo ""
+  echo "==== MESSAGE ===="
   export PR="$(git --no-pager log -1 --pretty=%s%n%n%b)"
-  echo ""
-  echo "Using message:"
-  echo ""
   echo $PR
+  echo "================="
   echo ""
+
   ask && hub pull-request -b $UPSTREAM_REPO:$UPSTREAM_BRANCH -h $ORIGIN_REPO:$BRANCH -m $PR
 }
 
@@ -455,6 +463,7 @@ mutt(){
     -e MUTT_NAME \
     -e MUTT_EMAIL \
     -e MUTT_PASS \
+    -e MUTT_PGP_KEY \
     -v $HOME/.gnupg:/home/user/.gnupg \
     -v $DPATH/etc/signature:/home/user/.mutt/signature \
     -v $DPATH/etc/aliases:/home/user/.mutt/aliases \
@@ -639,6 +648,9 @@ backup() {
 
 install_docker_machine() {
   RELEASE=0.5.0
+  echo ""
+  echo $RELEASE
+  echo ""
   curl -L https://github.com/docker/machine/releases/download/v$RELEASE/docker-machine_linux-amd64.zip >machine.zip && \
     unzip machine.zip && \
     rm machine.zip && \
@@ -647,13 +659,19 @@ install_docker_machine() {
 
 install_docker_compose() {
   RELEASE=1.6.2
+  echo ""
+  echo $RELEASE
+  echo ""
   curl -L https://github.com/docker/compose/releases/download/$RELEASE/docker-compose-Linux-x86_64 > docker-compose
   sudo mv docker-compose /usr/local/bin/docker-compose
   sudo chmod +x /usr/local/bin/docker-compose
 }
 
 install_oc() {
-  RELEASE="https://github.com/openshift/origin/releases/download/v1.1.3/openshift-origin-client-tools-v1.1.3-cffae05-linux-64bit.tar.gz"
+  RELEASE="https://github.com/openshift/origin/releases/download/v1.3.2/openshift-origin-client-tools-v1.3.2-ac1d579-linux-64bit.tar.gz"
+  echo ""
+  echo $RELEASE
+  echo ""
   wget $RELEASE -O openshift.tar.gz
   tar -xvf openshift.tar.gz --strip-components=1
   sudo mv oc /usr/local/bin/oc
@@ -661,7 +679,10 @@ install_oc() {
 }
 
 install_kubectl() {
-  RELEASE=1.2.4
+  RELEASE=1.4.0
+  echo ""
+  echo $RELEASE
+  echo ""
   wget https://storage.googleapis.com/kubernetes-release/release/v$RELEASE/bin/linux/amd64/kubectl
   sudo mv kubectl /usr/local/bin/
   sudo chmod +x /usr/local/bin/kubectl
@@ -735,6 +756,9 @@ install_docker() {
   else
     RELEASE=https://get.docker.com/builds/Linux/x86_64/docker-latest.tgz
   fi
+  echo ""
+  echo $RELEASE
+  echo ""
 
   echo ""
   echo "This installs only versions 1.11 and up since we're using .tar.gz now with the multiple binaries:)"
@@ -859,7 +883,7 @@ install_dropbox() {
 }
 
 install_golang() {
-  export GO_VERSION=1.6.2
+  export GO_VERSION=1.7.3
   export GO_SRC=/usr/local/go
 
   # purge old src
@@ -869,10 +893,15 @@ install_golang() {
   #  sudo rm -rf "$GOPATH"
   #fi
 
+  # rm old go
+  sudo rm -rf /usr/local/go
+  sudo rm -f /usr/bin/go
+
   echo -e "\n\tInstalling Go $GO_VERSION\n"
   (curl -sSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | sudo tar -v -C /usr/local -xz)
 
   # For sudo / root
+  sudo rm -f /usr/bin/go
   sudo ln -s /usr/local/go/bin/go /usr/bin/go
 }
 
@@ -940,6 +969,7 @@ dev_usage() {
   echo "Commands:"
   echo " k8s"
   echo " openshift"
+  echo " tmux"
 }
 
 dev() {
