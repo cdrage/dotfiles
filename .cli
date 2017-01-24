@@ -1,8 +1,8 @@
 #!/bin/bash
 
-############### 
-# EXPORTS
-############### 
+########## 
+# EXPORT #
+########## 
 
 # The best editor yo
 export EDITOR=vim
@@ -26,7 +26,7 @@ export HISTIGNORE="ls:cd:cd -:pwd:exit:date:* --help"
 # Tmux
 [[ $TMUX = "" ]] && export TERM="xterm-256color"
 
-# Dropbox / Home path
+# Dropbox
 export DPATH=$HOME/dropbox
 
 # Go
@@ -34,10 +34,12 @@ export GOPATH=$DPATH/dev/go
 export GOBIN=$GOPATH/bin
 export PATH=/usr/local/bin:/usr/local/go/bin:$PATH:$GOPATH/bin:/sbin
 
+# Rust
+export PATH="$HOME/.cargo/bin:$PATH"
 
-###################
-# ALIASES
-###################
+###########
+# ALIASES #
+###########
 
 alias todo="vim $DPATH/txt/todo.txt"
 alias notes="vim $DPATH/txt/notes.txt"
@@ -65,7 +67,6 @@ export LS_COLORS='no=00:fi=00:di=01;34:ln=01;36:pi=40;33:so=01;35:do=01;35:bd=40
 # Other
 alias sudo='sudo '
 alias week='date +%V'
-alias timer='echo "Timer started. Stop with Ctrl-D." && date && time cat && date'
 alias pubip="dig +short myip.opendns.com @resolver1.opendns.com"
 alias localip="sudo ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1'"
 alias ips="sudo ifconfig -a | grep -o 'inet6\? \(addr:\)\?\s\?\(\(\([0-9]\+\.\)\{3\}[0-9]\+\)\|[a-fA-F0-9:]\+\)' | awk '{ sub(/inet6? (addr:)? ?/, \"\"); print }'"
@@ -73,9 +74,17 @@ alias hosts='sudo vim /etc/hosts'
 alias untar='tar xvf'
 alias battery='upower -i /org/freedesktop/UPower/devices/battery_BAT0'
 
-###################
-# FUNCTIONS
-###################
+#############
+# FUNCTIONS #
+#############
+
+shout() {
+  echo ""
+  echo "=========="
+  echo $1
+  echo "=========="
+  echo ""
+}
 
 ask() {
     # http://djm.me/ask
@@ -127,7 +136,7 @@ twitch() {
   else
     local quality="high"
   fi
-  livestreamer twitch.tv/$1 $quality
+  streamlink twitch.tv/$1 $quality
 }
 
 digga() {
@@ -225,9 +234,9 @@ check-domain() {
 }
 
 
-###################
-# FUNCTIONS: GIT
-###################
+##################
+# FUNCTIONS: GIT #
+##################
 
 git-lazy() {
   if [ -z "$1" ]
@@ -274,7 +283,7 @@ git-checkout() {
     git checkout master
   fi
 
-  git checkout -b  $1
+  git checkout -b $1
 }
 
 git-update() {
@@ -426,7 +435,7 @@ git-pr() {
 }
 
 #####################
-# FUNCTIONS: DOCKER
+# FUNCTIONS: DOCKER #
 #####################
 
 # removes all stoppped, dead, 'created' containers && dangling images
@@ -437,6 +446,7 @@ dcleanup(){
   docker rmi $(docker images --filter dangling=true -q 2>/dev/null) 2>/dev/null
 }
 
+# if it relies on another container
 relies_on(){
   local containers=$1
 
@@ -458,26 +468,37 @@ del_stopped(){
   fi
 }
 
-mutt(){
-  docker run -it --rm \
-    -e MUTT_NAME \
-    -e MUTT_EMAIL \
-    -e MUTT_PASS \
-    -e MUTT_PGP_KEY \
-    -v $HOME/.gnupg:/home/user/.gnupg \
-    -v $DPATH/etc/signature:/home/user/.mutt/signature \
-    -v $DPATH/etc/aliases:/home/user/.mutt/aliases \
-    -v /etc/localtime:/etc/localtime:ro \
-    cdrage/mutt-gmail
-}
 
 jrl(){
-  docker run -it --rm -v $DPATH/txt/txt.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
+  docker run -it --rm --network=none -v $DPATH/txt/txt.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
 }
 
 peerflix() {
   magnet=$1
   docker run --rm -it -p 8888:8888 cdrage/peerflix $magnet
+}
+
+yubikey() {
+  docker run --rm -it \
+    --device /dev/bus/usb \
+    --device /dev/usb \
+    --name ykpersonalize \
+    cdrage/ykpersonalize bash
+}
+
+# Communication gateways / containers
+
+mutt(){
+  docker run -it --rm \
+    -e MUTT_NAME=$MUTT_NAME \
+    -e MUTT_EMAIL=$MUTT_EMAIL \
+    -e MUTT_PASS=$MUTT_PASS \
+    -e MUTT_PGP_KEY=$MUTT_PGP_KEY \
+    -v $HOME/.gnupg:/home/user/.gnupg \
+    -v $DPATH/etc/signature:/home/user/.mutt/signature \
+    -v $DPATH/etc/aliases:/home/user/.mutt/aliases \
+    -v /etc/localtime:/etc/localtime:ro \
+    cdrage/mutt-gmail
 }
 
 irc_twitch(){
@@ -489,26 +510,27 @@ irc_twitch(){
     -r "/server add twitch irc.twitch.tv -password=$TWITCHOAUTH;/set irc.server.twitch.nicks '$TWITCHUSER';/connect twitch"
 }
 
-slack() {
+k8s_slack() {
   del_stopped irc_slack
   docker run -it \
     -v /etc/localtime:/etc/localtime:ro \
-    --name irc_slack \
+    --name k8s_slack \
     cdrage/weechat \
-    -r "/server add slack $SLACK_HOST/6667 -autoconnect -ssl -ssl_dhkey_size=512 -password=$SLACK_PASS -username=$SLACK_USERNAME -nicks=$SLACK_USERNAME;/connect slack;/join #general"
+    -r "/server add slack $K8S_SLACK_HOST/6667 -autoconnect -ssl -ssl_dhkey_size=512 -password=$K8S_SLACK_PASSWORD -username=$K8S_SLACK_USERNAME -nicks=$K8S_SLACK_USERNAME;/connect slack;/join $K8S_SLACK_CHANNELS;/script install buffers.pl"
 }
 
-yubikey() {
-  docker run --rm -it \
-    --device /dev/bus/usb \
-    --device /dev/usb \
-    --name ykpersonalize \
-    cdrage/ykpersonalize bash
+irc() {
+  del_stopped irc
+  docker run -it \
+    -v /etc/localtime:/etc/localtime:ro \
+    --name irc \
+    cdrage/weechat \
+    -r "/server add $IRC_SERVER $IRC_SERVER_HOST -autoconnect -nicks=$IRC_NICK;/set irc.server.$IRC_SERVER.command \"/msg nickserv identify $IRC_PASSWORD\";/set irc.server.$IRC_SERVER.autojoin \"$IRC_CHANNELS\";/connect $IRC_SERVER;/script install buffers.pl"
 }
 
-##########
-# SYSTEMD GENERATION
-##########
+######################
+# SYSTEMD GENERATION #
+######################
 
 sysd_coreos() {
   sudo bash -c "cat >/etc/systemd/system/$1.service <<EOL
@@ -590,36 +612,30 @@ sysd() {
 
 }
 
-##########
-# Backup shit
-##########
+###################
+# DOTFILES BACKUP #
+###################
 
 backup_dotfiles() {
   for file in ~/.{cli,extra,tmux.conf,zshrc}; do
-    cp $file $DPATH/dev/dotfiles/
+    cp $file $DPATH/dev/linux/dotfiles/
   done
 }
 
 backup_config() {
-  mkdir -p $DPATH/dev/dotfiles/.config/terminator/
-  cp ~/.config/terminator/config $DPATH/dev/dotfiles/.config/terminator/config
+  mkdir -p $DPATH/dev/linux/dotfiles/.config/terminator/
+  cp ~/.config/terminator/config $DPATH/dev/linux/dotfiles/.config/terminator/config
 }
 
 backup_vim() {
-  cp -r ~/.vimrc ~/.vim/colors $DPATH/dev/vim/
+  cp -r ~/.vimrc ~/.vim/colors $DPATH/dev/linux/vim/
 }
 
 backup_usage() {
-  echo "Backup shit"
+  echo "Backup"
   echo ""
   echo "Usage:"
   echo " backup {all|dotfiles|config|vim}"
-  echo ""
-  echo "Commands:"
-  echo "  all"
-  echo "  dotfiles"
-  echo "  config"
-  echo "  vim"
 }
 
 
@@ -641,9 +657,9 @@ backup() {
   fi
 }
 
-##########
-# Install shit
-##########
+###########
+# INSTALL #
+###########
 
 
 install_docker_machine() {
@@ -679,35 +695,13 @@ install_oc() {
 }
 
 install_kubectl() {
-  RELEASE=1.4.0
+  RELEASE=1.5.1
   echo ""
   echo $RELEASE
   echo ""
   wget https://storage.googleapis.com/kubernetes-release/release/v$RELEASE/bin/linux/amd64/kubectl
   sudo mv kubectl /usr/local/bin/
   sudo chmod +x /usr/local/bin/kubectl
-}
-
-install_adduser() { 
-  if [[ $EUID -ne 0 ]]; then
-     echo "This script must be run as root" 1>&2
-  fi
-  if [[ -z $1 ]]; then
-    echo "must provide user as cmd line"
-  fi
-  apt-get install sudo -y
-
-  mkdir /home/$1
-  useradd -d /home/$1 -s /bin/bash $1
-  chown $1:users /home/$1
-  adduser $1 sudo 
-  mkdir /home/$1/.ssh
-  cp ~/.ssh/authorized_keys /home/$1/.ssh/
-  chown -R $1:$1 /home/$1/.ssh
-  { \
-    echo -e "$1 ALL=(ALL) NOPASSWD:ALL";
-} >> /etc/sudoers
-  echo "Remember to passwd the user too"
 }
 
 install_vim() {
@@ -761,19 +755,12 @@ install_docker() {
   echo ""
 
   echo ""
-  echo "This installs only versions 1.11 and up since we're using .tar.gz now with the multiple binaries:)"
-  echo ""
-  echo "This function only works on Debian / Ubuntu distros"
-  echo ""
-  echo "*Unless* you disable selinux on Fedora/CentOS, then it'll work on there too :)"
-  echo ""
-  echo ""
   echo "REQUIREMENTS:"
   echo " kernel w/ overlayfs"
   echo " cgroups"
   echo " iptables NAT module enaled"
   echo ""
-  echo "Note: I had to recompile Linux with NAT enabled due to not being in the .config, keep note of that :)"
+  echo "Reasoning for those requirements? My installation uses overlayfs"
 
   # Make sure :)
   if ! ask; then return 0; fi
@@ -961,15 +948,11 @@ install() {
 ##########
 
 dev_usage() {
-  echo "Development / cluster environments"
+  echo "Development environments"
   echo ""
   echo "Usage:"
-  echo " dev {k8s|openshift} {up|down|restart|clean}"
+  echo " dev {k8s|os} {up|down|reset}"
   echo ""
-  echo "Commands:"
-  echo " k8s"
-  echo " openshift"
-  echo " tmux"
 }
 
 dev() {
@@ -977,7 +960,7 @@ dev() {
 
   if [[ $cmd == "k8s" ]]; then
     dev_k8s ${@:2}
-  elif [[ $cmd == "openshift" ]]; then
+  elif [[ $cmd == "os" ]]; then
     dev_openshift ${@:2}
   else
     dev_usage 
@@ -1136,87 +1119,17 @@ dev_openshift(){
   fi
 
   if [[ $choice == "up" ]]; then
-    echo "\n-----Launching local openshift cluster-----\n"
-    docker run -d --name "origin" \
-      --privileged --pid=host --net=host \
-      -v /:/rootfs:ro -v /var/run:/var/run:rw -v /sys:/sys -v /var/lib/docker:/var/lib/docker:rw \
-      -v /var/lib/origin/openshift.local.volumes:/var/lib/origin/openshift.local.volumes \
-      openshift/origin start
-
-    echo "\n-----Initializing containers, please wait-----\n"
-    until nc -z 127.0.0.1 8443;
-    do
-      echo ...
-      sleep 1
-    done
-
-    echo "\n-----Launched!-----\n"
-
-    # Access token stuff
-    echo "\n-----Grabbing access tokens-----\n"
-    API_KEY=`curl -k -L -D - -u openshift:openshift -H 'X-CSRF-Token: 1' 'https://localhost:8443/oauth/authorize?response_type=token&client_id=openshift-challenging-client' 2>&1 | grep -oP "access_token=\K[^&]*"`
-    export API_KEY
-    echo $API_KEY
-    echo "Token exported to API_KEY"
-
-    echo "\n-----Setting local dev variables-----\n"
-    oc config set-credentials openshift --token=$API_KEY
-    oc config set-cluster openshift1 --server=https://localhost:8443 --insecure-skip-tls-verify=true
-    oc config set-context openshift --cluster=openshift1 --user=openshift
-    oc config use-context openshift
-    oc config set contexts.openshift.namespace foo
-    sleep 1
-    oc new-project foo
-
-    echo "\n-----Ready for development!-----\n"
-
+    oc cluster up
   elif [[ $choice == "down" ]]; then
-    echo "\n-----Removing OpenShift container-----\n"
-    docker rm -f origin
-
-    # Remove all kubernetes back-end containers created by origin
-    # Ran twice due to Debian aufs "busy" driver issue
-    echo "\n-----Removing leftover k8s containers-----\n"
-    for run in {0..2}
-    do
-      docker ps -a | grep 'gcr.io/google_containers/hyperkube' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
-      docker ps -a | grep 'gcr.io/google_containers/etcd' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
-      docker ps -a | grep 'k8s_' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f || true
-    done
-
+    oc cluster down
     rm ~/.kube/config
   elif [[ $choice == "restart" ]]; then
     dev_openshift down
     dev_openshift up
-  elif [[ $choice == "pv" ]]; then
-    # Hack to add a persistent volume for usage within OpenShift
-    cat << EOF > pv
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: foobar
-spec:
-  capacity:
-    storage: 20Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Recycle
-  hostPath:
-    path: /tmp/foobar
-EOF
-  docker cp pv origin:/tmp/pv
-  rm pv
-  docker exec -it origin oc create -f /tmp/pv
   else
     echo "OpenShift dev environment"
     echo ""
     echo "Usage:"
-    echo " openshift {up|down|restart|pv}"
-    echo ""
-    echo "Commands:"
-    echo " up"
-    echo " down"
-    echo " restart"
-    echo " pv - create a 20Gi persistent volume within the container at /tmp/foobar"
+    echo " openshift {up|down|restart}"
   fi
 }
