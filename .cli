@@ -253,7 +253,7 @@ git-lazy-pr() {
   git add .
   git commit
   git-push
-  git-pr
+  git-pr $1
 }
 
 git-push() {
@@ -281,9 +281,13 @@ git-checkout() {
   then
     echo "Checking out from master"
     git checkout master
+    git checkout -b $1
+  else
+    echo "Checking out from $2"
+    git checkout $2
+    git checkout -b $1
   fi
 
-  git checkout -b $1
 }
 
 git-update() {
@@ -355,7 +359,7 @@ git-patch-commit() {
     echo "Supply the commit yo. ex. https://github.com/foo/bar/commit/9b997db51837dd"
     return 1
   fi
-  curl -s "${1}.patch"| git am
+  curl -L -s "${1}.patch"| git am
 }
 
 
@@ -418,9 +422,8 @@ git-pr() {
   fi
 
   echo "==== INFO ===="
-  echo "Branch: " $BRANCH
-  echo "Origin: " $ORIGIN_REPO
-  echo "Upstream: " $UPSTREAM_REPO
+  echo "Origin: " $ORIGIN_REPO/$BRANCH
+  echo "Upstream: " $UPSTREAM_REPO/$UPSTREAM_BRANCH
   echo "=============="
 
 
@@ -510,22 +513,24 @@ irc_twitch(){
     -r "/server add twitch irc.twitch.tv -password=$TWITCHOAUTH;/set irc.server.twitch.nicks '$TWITCHUSER';/connect twitch"
 }
 
-k8s_slack() {
+# Setup background docker containers
+
+setup_k8s_slack() {
   del_stopped irc_slack
   docker run -it \
     -v /etc/localtime:/etc/localtime:ro \
     --name k8s_slack \
     cdrage/weechat \
-    -r "/server add slack $K8S_SLACK_HOST/6667 -autoconnect -ssl -ssl_dhkey_size=512 -password=$K8S_SLACK_PASSWORD -username=$K8S_SLACK_USERNAME -nicks=$K8S_SLACK_USERNAME;/connect slack;/join $K8S_SLACK_CHANNELS;/script install buffers.pl"
+    -r "/server add slack $K8S_SLACK_HOST/6667 -autoconnect -ssl -ssl_dhkey_size=512 -password=$K8S_SLACK_PASSWORD -username=$K8S_SLACK_USERNAME -nicks=$K8S_SLACK_USERNAME;/connect slack;/join $K8S_SLACK_CHANNELS;/script install buffers.pl;/script install atcomplete.pl;/set weechat.completion.nick_completer '';/set weechat.bar.nicklist.hidden false;/set weechat.bar.nicklist.position right"
 }
 
-irc() {
+setup_personal_irc() {
   del_stopped irc
   docker run -it \
     -v /etc/localtime:/etc/localtime:ro \
     --name irc \
     cdrage/weechat \
-    -r "/server add $IRC_SERVER $IRC_SERVER_HOST -autoconnect -nicks=$IRC_NICK;/set irc.server.$IRC_SERVER.command \"/msg nickserv identify $IRC_PASSWORD\";/set irc.server.$IRC_SERVER.autojoin \"$IRC_CHANNELS\";/connect $IRC_SERVER;/script install buffers.pl"
+    -r "/server add $IRC_SERVER $IRC_SERVER_HOST -autoconnect -nicks=$IRC_NICK;/set irc.server.$IRC_SERVER.command \"/msg nickserv identify $IRC_PASSWORD\";/set irc.server.$IRC_SERVER.autojoin \"$IRC_CHANNELS\";/connect $IRC_SERVER;/set weechat.bar.nicklist.position right;/set weechat.bar.nicklist.hidden false;/script install buffers.pl"
 }
 
 ######################
@@ -700,7 +705,7 @@ install_kubectl() {
   echo $RELEASE
   echo ""
   wget https://storage.googleapis.com/kubernetes-release/release/v$RELEASE/bin/linux/amd64/kubectl
-  sudo mv kubectl /usr/local/bin/
+  sudo mv kubectl /usr/local/bin/kubectl
   sudo chmod +x /usr/local/bin/kubectl
 }
 
@@ -754,13 +759,13 @@ install_docker() {
   echo $RELEASE
   echo ""
 
+  echo "Installs Docker manually on a Debian or RHEL-based operating system"
   echo ""
-  echo "REQUIREMENTS:"
-  echo " kernel w/ overlayfs"
+  echo "Requirements:"
+  echo " kernel w/ overlayfs (optional)"
   echo " cgroups"
   echo " iptables NAT module enaled"
   echo ""
-  echo "Reasoning for those requirements? My installation uses overlayfs"
 
   # Make sure :)
   if ! ask; then return 0; fi
@@ -794,7 +799,7 @@ install_docker() {
   else
     curl $RELEASE > docker.tgz
     tar -xvzf docker.tgz
-    sudo mv docker/* /usr/bin/
+    sudo mv docker/docker* /usr/bin/
   fi
 
   echo "\n\n-----Installing SystemD files-----\n\n"
@@ -809,7 +814,7 @@ Requires=docker.socket
 
 [Service]
 Type=notify
-ExecStart=/usr/bin/docker daemon --iptables=true -s overlay -H fd://
+ExecStart=/usr/bin/dockerd --iptables=true -H fd://
 MountFlags=slave
 LimitNOFILE=1048576
 LimitNPROC=1048576
@@ -870,7 +875,7 @@ install_dropbox() {
 }
 
 install_golang() {
-  export GO_VERSION=1.7.3
+  export GO_VERSION=1.8
   export GO_SRC=/usr/local/go
 
   # purge old src

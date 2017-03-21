@@ -11,4 +11,6 @@ for file in ~/.{cli,extra}; do
 done
 unset file
 
-fortune -a -s | lolcat
+fortune -a -s
+
+export PATH="$PATH:$HOME/.rvm/bin" # Add RVM to PATH for scripting
