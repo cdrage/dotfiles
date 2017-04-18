@@ -634,6 +634,7 @@ backup_config() {
 
 backup_vim() {
   cp -r ~/.vimrc ~/.vim/colors $DPATH/dev/linux/vim/
+  cp -r ~/.vim/mysnippets $DPATH/dev/linux/vim/
 }
 
 backup_usage() {
@@ -689,7 +690,7 @@ install_docker_compose() {
 }
 
 install_oc() {
-  RELEASE="https://github.com/openshift/origin/releases/download/v1.3.2/openshift-origin-client-tools-v1.3.2-ac1d579-linux-64bit.tar.gz"
+  RELEASE="https://github.com/openshift/origin/releases/download/v1.4.1/openshift-origin-client-tools-v1.4.1-3f9807a-linux-64bit.tar.gz"
   echo ""
   echo $RELEASE
   echo ""
@@ -814,7 +815,7 @@ Requires=docker.socket
 
 [Service]
 Type=notify
-ExecStart=/usr/bin/dockerd --iptables=true -H fd://
+ExecStart=/usr/bin/dockerd --insecure-registry 172.30.0.0/16 --iptables=true -H fd:// 
 MountFlags=slave
 LimitNOFILE=1048576
 LimitNPROC=1048576
@@ -852,6 +853,10 @@ EOL'
 
   echo "\n\n-----Docker ps-----\n\n"
   docker ps
+
+  echo "\n\n-----Removing docker files-----\n\n"
+  rm -rf docker.tgz docker
+
 
   echo "\nDocker installed!\nAlthough you may need to update your GRUB to enable cgroup memory + swap.\nRun 'install docker-grub'"
 }
