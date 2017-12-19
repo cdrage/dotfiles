@@ -218,8 +218,8 @@ vim +$ +startinsert $DATE-$1.markdown
 
 worldtime() {
   let ctr=1
-  array=("UTC" "US/Pacific" "America/Toronto" "Asia/Kolkata")
-  time=("UTC  " "PST  " "EST  " "India")
+  array=("UTC" "US/Pacific" "America/Toronto" "Europe/Amsterdam" "Asia/Kolkata")
+  time=("UTC  " "PST  " "EST  " "Ams  " "India")
   for i in "${array[@]}"; do
     echo -e "${time[$ctr]} \c"
     TZ=":$i" date +%d\ %H:%M
@@ -400,7 +400,10 @@ git-pull-pr() {
     'git remote add upstream git@github.com/username/repo.git'"
     return 1
   fi
-  git fetch upstream pull/$NUMBAH/head:pr_$NUMBAH && git checkout pr_$NUMBAH
+  git checkout master
+  git branch -D pr_$NUMBAH
+  git fetch upstream pull/$NUMBAH/head:pr_$NUMBAH
+  git checkout pr_$NUMBAH
 }
 
 # long af
@@ -492,11 +495,11 @@ del_stopped(){
 
 
 jrl(){
-  docker run -it --rm --network=none -v $DPATH/txt/txt.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
+  docker run -it --rm --network=none -v $DPATH/enc/txt.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
 }
 
 creds(){
-  docker run -it --rm --network=none -v $DPATH/txt/creds.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
+  docker run -it --rm --network=none -v $DPATH/enc/creds.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
 }
 
 peerflix() {
@@ -536,15 +539,26 @@ irc_twitch(){
     -r "/server add twitch irc.twitch.tv -password=$TWITCHOAUTH;/set irc.server.twitch.nicks '$TWITCHUSER';/connect twitch"
 }
 
-# Setup background docker containers
+#######################
+# SETUP STUFF FOR VPS'#
+#######################
+
+setup_kedge_slack() {
+  del_stopped kedge_slack
+  docker run -it \
+    -v /etc/localtime:/etc/localtime:ro \
+    --name kedge_slack \
+    cdrage/weechat \
+    -r "/server add slack $KEDGE_SLACK_HOST/6667 -autoconnect -ssl -ssl_dhkey_size=512 -password=$KEDGE_SLACK_PASSWORD -username=$KEDGE_SLACK_USERNAME -nicks=$KEDGE_SLACK_USERNAME;/connect slack;/join $KEDGE_SLACK_CHANNELS;/script install atcomplete.pl;/set weechat.completion.nick_completer '';/set weechat.bar.nicklist.hidden false;/set weechat.bar.nicklist.position right"
+}
 
 setup_k8s_slack() {
-  del_stopped irc_slack
+  del_stopped k8s_slack
   docker run -it \
     -v /etc/localtime:/etc/localtime:ro \
     --name k8s_slack \
     cdrage/weechat \
-    -r "/server add slack $K8S_SLACK_HOST/6667 -autoconnect -ssl -ssl_dhkey_size=512 -password=$K8S_SLACK_PASSWORD -username=$K8S_SLACK_USERNAME -nicks=$K8S_SLACK_USERNAME;/connect slack;/join $K8S_SLACK_CHANNELS;/script install buffers.pl;/script install atcomplete.pl;/set weechat.completion.nick_completer '';/set weechat.bar.nicklist.hidden false;/set weechat.bar.nicklist.position right"
+    -r "/server add slack $K8S_SLACK_HOST/6667 -autoconnect -ssl -ssl_dhkey_size=512 -password=$K8S_SLACK_PASSWORD -username=$K8S_SLACK_USERNAME -nicks=$K8S_SLACK_USERNAME;/connect slack;/join $K8S_SLACK_CHANNELS;/script install atcomplete.pl;/set weechat.completion.nick_completer '';/set weechat.bar.nicklist.hidden false;/set weechat.bar.nicklist.position right"
 }
 
 setup_personal_irc() {
@@ -553,7 +567,7 @@ setup_personal_irc() {
     -v /etc/localtime:/etc/localtime:ro \
     --name irc \
     cdrage/weechat \
-    -r "/server add $IRC_SERVER $IRC_SERVER_HOST -autoconnect -nicks=$IRC_NICK;/set irc.server.$IRC_SERVER.command \"/msg nickserv identify $IRC_PASSWORD\";/set irc.server.$IRC_SERVER.autojoin \"$IRC_CHANNELS\";/connect $IRC_SERVER;/set weechat.bar.nicklist.position right;/set weechat.bar.nicklist.hidden false;/script install buffers.pl"
+    -r "/server add $IRC_SERVER $IRC_SERVER_HOST -autoconnect -nicks=$IRC_NICK;/set irc.server.$IRC_SERVER.command \"/msg nickserv identify $IRC_PASSWORD\";/set irc.server.$IRC_SERVER.autojoin \"$IRC_CHANNELS\";/connect $IRC_SERVER;/set weechat.bar.nicklist.position right;/set weechat.bar.nicklist.hidden false;"
 }
 
 ######################
@@ -652,19 +666,19 @@ backup_dotfiles() {
 
 backup_config() {
   mkdir -p $DPATH/dev/linux/dotfiles/.config/terminator/
-  cp ~/.config/terminator/config $DPATH/dev/linux/dotfiles/.config/terminator/config
-}
 
-backup_vim() {
-  cp -r ~/.vimrc ~/.vim/colors $DPATH/dev/linux/vim/
-  cp -r ~/.vim/mysnippets $DPATH/dev/linux/vim/
+  # Backup terminator / terminal
+  cp ~/.config/terminator/config $DPATH/dev/linux/dotfiles/.config/terminator/config
+
+  # Backup neovim
+  cp -r ~/.config/nvim $DPATH/dev/linux/dotfiles/.config/nvim
 }
 
 backup_usage() {
   echo "Backup"
   echo ""
   echo "Usage:"
-  echo " backup {all|dotfiles|config|vim}"
+  echo " backup {all|dotfiles|config"
 }
 
 
@@ -675,12 +689,9 @@ backup() {
     backup_dotfiles
   elif [[ $cmd == "config" ]]; then
     backup_config
-  elif [[ $cmd == "vim" ]]; then
-    backup_vim
   elif [[ $cmd == "all" ]]; then
     backup_dotfiles
     backup_config
-    backup_vim
   else
     backup_usage 
   fi
@@ -713,7 +724,7 @@ install_docker_compose() {
 }
 
 install_oc() {
-  RELEASE="https://github.com/openshift/origin/releases/download/v1.4.1/openshift-origin-client-tools-v1.4.1-3f9807a-linux-64bit.tar.gz"
+  RELEASE="https://github.com/openshift/origin/releases/download/v3.6.0/openshift-origin-client-tools-v3.6.0-c4dd4cf-linux-64bit.tar.gz"
   echo ""
   echo $RELEASE
   echo ""
@@ -724,21 +735,13 @@ install_oc() {
 }
 
 install_kubectl() {
-  RELEASE=1.5.1
+  RELEASE=1.7.5
   echo ""
   echo $RELEASE
   echo ""
   wget https://storage.googleapis.com/kubernetes-release/release/v$RELEASE/bin/linux/amd64/kubectl
   sudo mv kubectl /usr/local/bin/kubectl
   sudo chmod +x /usr/local/bin/kubectl
-}
-
-install_vim() {
-  sudo apt-get install -y vim
-  git clone git://github.com/charliedrage/vim.git ~/.vim
-  git clone https://github.com/VundleVim/Vundle.vim.git ~/.vim/bundle/Vundle.vim
-  cp ~/.vim/.vimrc ~/
-  vim +PluginInstall +qall
 }
 
 install_terminator() {
@@ -901,10 +904,11 @@ install_dropbox() {
   docker pull janeczku/dropbox
   docker run -d -v $DPATH:/dbox/Dropbox --restart=always --name dropbox janeczku/dropbox
   docker logs -f dropbox
+  docker exec dropbox dropbox exclude add ./.git ./vendor
 }
 
 install_golang() {
-  export GO_VERSION=1.8
+  export GO_VERSION=1.9
   export GO_SRC=/usr/local/go
 
   # purge old src
@@ -936,7 +940,6 @@ install_usage() {
   echo "  oc"
   echo "  kubectl"
   echo "  go"
-  echo "  vim"
   echo "  terminator"
   echo "  tmux"
 }
@@ -978,7 +981,45 @@ install() {
 # DEV / CLUSTER ENVIRONMENTS
 ##########
 
-alias fedora="kvm_ssh fedora25"
+vm_usage() {
+  echo "VM environments"
+  echo ""
+  echo "Usage:"
+  echo " vm {fedora|rhel} {up|down}"
+  echo ""
+}
+
+vm_fedora() {
+  local cmd=$1
+
+  if [[ $cmd == "up" ]]; then
+    kvm_ssh fedora25
+  elif [[ $cmd == "down" ]]; then
+    sudo virsh shutdown fedora25
+  fi
+}
+
+vm_rhel() {
+  local cmd=$1
+
+  if [[ $cmd == "up" ]]; then
+    kvm_ssh rhel7 rhel
+  elif [[ $cmd == "down" ]]; then
+    sudo virsh shutdown rhel7
+  fi
+}
+
+vm() {
+  local cmd=$1
+
+  if [[ $cmd == "fedora" ]]; then
+    vm_fedora ${@:2}
+  elif [[ $cmd == "rhel" ]]; then
+    vm_rhel ${@:2}
+  else
+    vm_usage 
+  fi
+}
 
 # SSH's into a kvm vm
 kvm_ssh() {
@@ -1042,6 +1083,7 @@ dev() {
   fi
 }
 
+# TODO: Update to minikube only
 dev_k8s(){
   local choice=$1
   K8S_VERSION=1.3.4
@@ -1197,7 +1239,6 @@ dev_openshift(){
     oc cluster up
   elif [[ $choice == "down" ]]; then
     oc cluster down
-    rm ~/.kube/config
   elif [[ $choice == "restart" ]]; then
     dev_openshift down
     dev_openshift up
