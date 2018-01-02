@@ -26,23 +26,24 @@ export HISTIGNORE="ls:cd:cd -:pwd:exit:date:* --help"
 # Tmux
 [[ $TMUX = "" ]] && export TERM="xterm-256color"
 
-# Dropbox
-export DPATH=$HOME/dropbox
+# Seafile
+export SPATH=$HOME/seafile/files
 
 # Go
-export GOPATH=$DPATH/dev/go
+export GOPATH=$SPATH/dev/go
 export GOBIN=$GOPATH/bin
 export PATH=/usr/local/bin:/usr/local/go/bin:$PATH:$GOPATH/bin:/sbin
 
 # Rust
 export PATH="$HOME/.cargo/bin:$PATH"
 
+
 ###########
 # ALIASES #
 ###########
 
-alias todo="vim $DPATH/txt/todo.txt"
-alias notes="vim $DPATH/txt/notes.txt"
+alias todo="vim $SPATH/txt/todo.txt"
+alias notes="vim $SPATH/txt/notes.txt"
 
 # Easier navigation
 alias ..="cd .."
@@ -63,6 +64,11 @@ alias la="ls -laF ${colorflag}"
 alias lsd="ls -lF ${colorflag} | grep --color=never '^d'"
 alias ls="command ls ${colorflag}"
 export LS_COLORS='no=00:fi=00:di=01;34:ln=01;36:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arj=01;31:*.taz=01;31:*.lzh=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.gz=01;31:*.bz2=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.jpg=01;35:*.jpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.avi=01;35:*.fli=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.ogg=01;35:*.mp3=01;35:*.wav=01;35:'
+
+# Use neovim instead
+alias vim="nvim"
+alias vi="nvim"
+alias oldvim="vim"
 
 # Other
 alias sudo='sudo '
@@ -106,8 +112,8 @@ ask() {
 
         # Ask the question (not using "read -p" as it uses stderr not stdout)
         echo "====="
-        echo -n "$1"
-        echo -n "[$prompt]"
+        echo -n "$1 "
+        echo -n "[$prompt] "
         echo ""
         echo "====="
 
@@ -148,23 +154,32 @@ xkcd() {
   shuf -n5 /usr/share/dict/words | sed -e ':a;N;$!ba;s/\n/ /g;s/'\''//g;s/\b\(.\)/\u\1/g;s/ //g'
 }
 
-gogo() {
-  if [[ $1 == *'/'* ]]; then
-    local devpath=`find $DPATH/dev -maxdepth 3 -type d -path "*$1" | head -n1`
-    local gopath=`find $GOPATH/src -maxdepth 5 -type d -path "*$1" | head -n1`
-  else
-    local devpath=`find $DPATH/dev -maxdepth 1 -type d -iname "$1" | head -n1`
-    local gopath=`find $GOPATH/src -maxdepth 3 -type d -iname "$1" | head -n1`
-  fi
 
-  if [[ ! "$devpath" == "" ]]; then
-    cd $devpath
-  elif [[ ! "$gopath" == "" ]]; then
-    cd $gopath
-  else
-    echo "$1 dir not found"
-    return 1
-  fi
+# go to a folder easily in your gopath
+gogo(){
+	local d=$1
+
+	if [[ -z $d ]]; then
+		echo "You need to specify a project name."
+		return 1
+	fi
+
+	if [[ "$d" == github* ]]; then
+		d=$(echo "$d" | sed 's/.*\///')
+	fi
+	d=${d%/}
+
+	# search for the project dir in the GOPATH
+	mapfile -t path < <(find "${GOPATH}/src" \( -type d -o -type l \) -iname "$d"  | awk '{print length, $0;}' | sort -n | awk '{print $2}')
+
+	if [ "${path[0]}" == "" ] || [ "${path[*]}" == "" ]; then
+		echo "Could not find a directory named $d in $GOPATH"
+		echo "Maybe you need to 'go get' it ;)"
+		return 1
+	fi
+
+	# enter the first path found
+	cd "${path[0]}" || return 1
 }
 
 spoof_mac() {
@@ -495,11 +510,11 @@ del_stopped(){
 
 
 jrl(){
-  docker run -it --rm --network=none -v $DPATH/enc/txt.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
+  docker run -it --rm --network=none -v $SPATH/enc/txt.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
 }
 
 creds(){
-  docker run -it --rm --network=none -v $DPATH/enc/creds.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
+  docker run -it --rm --network=none -v $SPATH/enc/creds.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
 }
 
 peerflix() {
@@ -524,8 +539,8 @@ mutt(){
     -e MUTT_PASS=$MUTT_PASS \
     -e MUTT_PGP_KEY=$MUTT_PGP_KEY \
     -v $HOME/.gnupg:/home/user/.gnupg \
-    -v $DPATH/etc/signature:/home/user/.mutt/signature \
-    -v $DPATH/etc/aliases:/home/user/.mutt/aliases \
+    -v $SPATH/etc/signature:/home/user/.mutt/signature \
+    -v $SPATH/etc/aliases:/home/user/.mutt/aliases \
     -v /etc/localtime:/etc/localtime:ro \
     cdrage/mutt-gmail
 }
@@ -660,18 +675,18 @@ sysd() {
 
 backup_dotfiles() {
   for file in ~/.{cli,extra,tmux.conf,zshrc}; do
-    cp $file $DPATH/dev/linux/dotfiles/
+    cp $file $SPATH/dev/linux/dotfiles/
   done
 }
 
 backup_config() {
-  mkdir -p $DPATH/dev/linux/dotfiles/.config/terminator/
+  mkdir -p $SPATH/dev/linux/dotfiles/.config/terminator/
 
   # Backup terminator / terminal
-  cp ~/.config/terminator/config $DPATH/dev/linux/dotfiles/.config/terminator/config
+  cp ~/.config/terminator/config $SPATH/dev/linux/dotfiles/.config/terminator/config
 
   # Backup neovim
-  cp -r ~/.config/nvim $DPATH/dev/linux/dotfiles/.config/nvim
+  cp -r ~/.config/nvim $SPATH/dev/linux/dotfiles/.config/nvim
 }
 
 backup_usage() {
@@ -747,13 +762,13 @@ install_kubectl() {
 install_terminator() {
   sudo apt-get install -y terminator
   mkdir -p ~/.config/terminator
-  cp .config/terminator/config ~/.config/terminator/config
+  cp $SPATH/dev/linux/dotfiles/.config/terminator/config ~/.config/terminator/config
 }
 
 install_tmux() {
   sudo apt-get install tmux
   git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
-  cp .tmux.conf ~/
+  cp $SPATH/dev/linux/dotfiles/.tmux.conf ~/
 }
 
 install_docker_master() {
@@ -899,12 +914,32 @@ install_docker_grub() {
   fi
 }
 
-install_dropbox() {
-  # Source: https://github.com/janeczku/docker-dropbox
-  docker pull janeczku/dropbox
-  docker run -d -v $DPATH:/dbox/Dropbox --restart=always --name dropbox janeczku/dropbox
-  docker logs -f dropbox
-  docker exec dropbox dropbox exclude add ./.git ./vendor
+install_neovim() {
+	sudo apt-get install neovim -y
+	curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
+    https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+	cp -r $SPATH/dev/linux/dotfiles/.config/nvim/ ~/.config/nvim
+}
+
+install_keys() {
+  if ! ask "This will override any SSH / PGP keys, continue?"; then return 0; fi
+  cp -r $SPATH/etc/keys/ssh/ ~/.ssh/
+}
+
+install_seafile() {
+	docker run \
+	-d \
+	--name seafile-client \
+	-v ~/seafile:/data \
+	--restart=always \
+	cdrage/seafile-client
+	docker logs -f seafile-client
+	docker exec seafile-client /usr/bin/seaf-cli
+
+	echo ""
+	echo "Please add your first sync folder via:"
+	echo "docker exec seafile-client /usr/bin/seaf-cli sync -l YOUR_LIBRARY_ID -s YOUR_SEAFILE_SERVER -d /data/YOUR_FOLDER -u YOUR_EMAIL -p YOUR_PASSWORD"
+	echo ""
 }
 
 install_golang() {
@@ -931,8 +966,19 @@ install_golang() {
 }
 
 install_usage() {
-  echo -e "\n\tInstall / Update shit\n"
-  echo "Usage:"
+  echo ""
+  echo "Install / Update:"
+  echo ""
+  echo "First-time-installations / new-machine:"
+  echo "  terminator"
+  echo "  tmux"
+  echo "  neovim"
+  echo "  keys"
+  echo ""
+  echo "Docker Containers:"
+  echo "  seafile"
+  echo ""
+  echo "Applications:"
   echo "  docker [latest, master, 1.10.1]"
   echo "  docker-machine"
   echo "  docker-compose"
@@ -940,8 +986,6 @@ install_usage() {
   echo "  oc"
   echo "  kubectl"
   echo "  go"
-  echo "  terminator"
-  echo "  tmux"
 }
 
 
@@ -962,12 +1006,18 @@ install() {
     install_kubectl
   elif [[ $cmd == "vim" ]]; then
     install_vim
+  elif [[ $cmd == "seafile" ]]; then
+    install_seafile
+  elif [[ $cmd == "neovim" ]]; then
+    install_neovim
   elif [[ $cmd == "terminator" ]]; then
     install_terminator
+  elif [[ $cmd == "keys" ]]; then
+    install_keys
   elif [[ $cmd == "tmux" ]]; then
     install_tmux
-  elif [[ $cmd == "dropbox" ]]; then
-    install_dropbox
+  elif [[ $cmd == "seafile" ]]; then
+    install_seafile
   elif [[ $cmd == "go" ]]; then
     install_golang
   elif [[ $cmd == "go" ]]; then
@@ -981,6 +1031,12 @@ install() {
 # DEV / CLUSTER ENVIRONMENTS
 ##########
 
+fedoraVM=fedora
+fedoraUSER=root
+rhelVM=rhel
+rhelUSER=rhel
+
+
 vm_usage() {
   echo "VM environments"
   echo ""
@@ -993,9 +1049,9 @@ vm_fedora() {
   local cmd=$1
 
   if [[ $cmd == "up" ]]; then
-    kvm_ssh fedora25
+    kvm_ssh $fedoraVM $fedoraUSER
   elif [[ $cmd == "down" ]]; then
-    sudo virsh shutdown fedora25
+    sudo virsh shutdown $fedoraVM
   fi
 }
 
@@ -1003,9 +1059,9 @@ vm_rhel() {
   local cmd=$1
 
   if [[ $cmd == "up" ]]; then
-    kvm_ssh rhel7 rhel
+    kvm_ssh $rhelVM $rhelUSER
   elif [[ $cmd == "down" ]]; then
-    sudo virsh shutdown rhel7
+    sudo virsh shutdown $rhelVM
   fi
 }
 
@@ -1031,20 +1087,13 @@ kvm_ssh() {
     VM_USER="root"
   fi
 
-  # Check the VM is running
-  tmp=$(sudo virsh list --all | grep " $VM " | awk '{ print $3}')
-  if ([ "x$tmp" == "x" ] || [ "x$tmp" != "xrunning" ])
-  then
-      echo "$VM: Starting..."
-      sudo virsh start $VM &>/dev/null
-  else
-      echo "$VM: Is running..."
-  fi
+  # Who cares if it's already up
+  sudo virsh start $VM &>/dev/null
 
   # Grab the IP address
   while [ true ]; do
     echo "$VM: Gathering IP..."
-    VM_IP=$(for mac in `sudo virsh domiflist $VM |grep -o -E "([0-9a-f]{2}:){5}([0-9a-f]{2})"` ; do arp -e |grep $mac  |grep -o -P "^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}" ; done)
+    VM_IP=$(for mac in `sudo virsh domiflist $VM |grep -o -E "([0-9a-f]{2}:){5}([0-9a-f]{2})"` ; do sudo arp -e |grep $mac  |grep -o -P "^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}" ; done)
     if [ ! -z "${VM_IP}" ]; then
       echo "$VM: $VM_IP"
       break

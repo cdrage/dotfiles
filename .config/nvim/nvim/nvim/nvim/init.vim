@@ -14,6 +14,7 @@ call plug#begin('~/.vim/plugged')
   Plug 'ervandew/supertab'
   Plug 'godlygeek/tabular'
   Plug 'plasticboy/vim-markdown'
+  Plug 'junegunn/fzf.vim'
 
   " Autocompletion
   Plug 'Shougo/deoplete.nvim', { 'do': ':UpdateRemotePlugins' }
@@ -41,10 +42,11 @@ syntax on
 
 "
 " Neovim stuff
-"
-
-let $NVIM_TUI_ENABLE_CURSOR_SHAPE=0
+" Disables guicursor because my older terminator setup doesn't seem to work
+" correctly.
 set guicursor=
+let $NVIM_TUI_ENABLE_CURSOR_SHAPE=0
+
 
 "
 " FORMATTING
