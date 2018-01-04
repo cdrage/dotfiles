@@ -149,3 +149,10 @@ inoremap <C-@> <C-Space>
 " Enable autocompletion on startup
 " Use deoplete.
 let g:deoplete#enable_at_startup = 1
+
+" Copying
+noremap <Leader>y "*y
+noremap <Leader>p "*p
+noremap <Leader>Y "+y
+noremap <Leader>P "+p
+set mouse=v
