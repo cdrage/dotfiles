@@ -5,7 +5,7 @@
 ########## 
 
 # The best editor yo
-export EDITOR=vim
+export EDITOR=nvim
 
 # HIDPI for GTK apps
 export GDK_SCALE=2
@@ -156,30 +156,23 @@ xkcd() {
 
 
 # go to a folder easily in your gopath
-gogo(){
-	local d=$1
+gogo() {
+  if [[ $1 == *'/'* ]]; then
+    local devpath=`find $SPATH/dev -maxdepth 3 -type d -path "*$1" | head -n1`
+    local gopath=`find $GOPATH/src -maxdepth 5 -type d -path "*$1" | head -n1`
+  else
+    local devpath=`find $SPATH/dev -maxdepth 1 -type d -iname "$1" | head -n1`
+    local gopath=`find $GOPATH/src -maxdepth 3 -type d -iname "$1" | head -n1`
+  fi
 
-	if [[ -z $d ]]; then
-		echo "You need to specify a project name."
-		return 1
-	fi
-
-	if [[ "$d" == github* ]]; then
-		d=$(echo "$d" | sed 's/.*\///')
-	fi
-	d=${d%/}
-
-	# search for the project dir in the GOPATH
-	mapfile -t path < <(find "${GOPATH}/src" \( -type d -o -type l \) -iname "$d"  | awk '{print length, $0;}' | sort -n | awk '{print $2}')
-
-	if [ "${path[0]}" == "" ] || [ "${path[*]}" == "" ]; then
-		echo "Could not find a directory named $d in $GOPATH"
-		echo "Maybe you need to 'go get' it ;)"
-		return 1
-	fi
-
-	# enter the first path found
-	cd "${path[0]}" || return 1
+  if [[ ! "$devpath" == "" ]]; then
+    cd $devpath
+  elif [[ ! "$gopath" == "" ]]; then
+    cd $gopath
+  else
+    echo "$1 dir not found"
+    return 1
+  fi
 }
 
 spoof_mac() {
@@ -686,7 +679,7 @@ backup_config() {
   cp ~/.config/terminator/config $SPATH/dev/linux/dotfiles/.config/terminator/config
 
   # Backup neovim
-  cp -r ~/.config/nvim $SPATH/dev/linux/dotfiles/.config/nvim
+  cp -r ~/.config/nvim $SPATH/dev/linux/dotfiles/.config/
 }
 
 backup_usage() {
@@ -771,148 +764,20 @@ install_tmux() {
   cp $SPATH/dev/linux/dotfiles/.tmux.conf ~/
 }
 
-install_docker_master() {
-
-    RELEASE=https://master.dockerproject.org/linux/amd64
-
-    # Master binary
-    curl $RELEASE/docker > docker
-    sudo mv docker /usr/bin/docker
-    sudo chmod +x /usr/bin/docker
-
-    # The rest of the binaries
-    # Note: docker = client, dockerd = daemon now...
-    array=( dockerd docker-containerd docker-containerd-shim docker-containerd-ctr docker-runc)
-    for i in "${array[@]}"
-    do
-      curl $RELEASE/$i > $i
-      sudo mv $i /usr/bin/$i
-      sudo chmod +x /usr/bin/$i
-    done
-}
-
 install_docker() {
-  if [[ ! -z $1 ]]; then
-    RELEASE=https://get.docker.com/builds/Linux/x86_64/docker-$1.tgz
-  else
-    RELEASE=https://get.docker.com/builds/Linux/x86_64/docker-latest.tgz
-  fi
-  echo ""
-  echo $RELEASE
-  echo ""
-
-  echo "Installs Docker manually on a Debian or RHEL-based operating system"
-  echo ""
-  echo "Requirements:"
-  echo " kernel w/ overlayfs (optional)"
-  echo " cgroups"
-  echo " iptables NAT module enaled"
-  echo ""
-
-  # Make sure :)
-  if ! ask; then return 0; fi
-
-  # Prelim
-  echo "\n\n-----Installing prelim stuff-----\n\n"
-  if [ -f /etc/redhat-release ]; then
-    echo "\nRunning on Red Hat-style operating systems\n"
-    sudo yum install iptables libcgroup tar xz -y
-  else
-    echo "\nRunning on Debian/Ubuntu-style operating systems\n"
-    sudo apt-get install cgroupfs-mount iptables xz-utils curl -y
-  fi
-  sudo groupadd docker
-  sudo gpasswd -a $USER docker
-
-  # Make sure that there is no Docker on our system. If there is. Remove that shit! 
-  # As well as any systemd files
-  if [ -f /usr/bin/docker ]; then
-    echo "\n\n-----Removing previously installed docker-----\n\n"
-    sudo systemctl stop docker || true
-    sudo systemctl disable docker || true
-    sudo rm /usr/bin/docker
-  fi
-
-  # Grab that sweet binary goodness
-  echo "\n\n-----Grabbing the Docker binary-----\n\n"
-
-  if [[ $1 == "master" ]]; then
-    install_docker_master
-  else
-    curl $RELEASE > docker.tgz
-    tar -xvzf docker.tgz
-    sudo mv docker/docker* /usr/bin/
-  fi
-
-  echo "\n\n-----Installing SystemD files-----\n\n"
-  # SystemD
-  sudo bash -c 'cat >/etc/systemd/system/docker.service <<EOL
-# https://github.com/docker/docker/blob/master/contrib/init/systemd/docker.service
-[Unit]
-Description=Docker Application Container Engine
-Documentation=https://docs.docker.com
-After=network.target docker.socket
-Requires=docker.socket
-
-[Service]
-Type=notify
-ExecStart=/usr/bin/dockerd --insecure-registry 172.30.0.0/16 --iptables=true -H fd:// 
-MountFlags=slave
-LimitNOFILE=1048576
-LimitNPROC=1048576
-LimitCORE=infinity
-TimeoutStartSec=0
-Delegate=yes
-
-[Install]
-WantedBy=multi-user.target
-EOL'
-
-  sudo bash -c 'cat >/etc/systemd/system/docker.socket <<EOL
-# https://github.com/docker/docker/blob/master/contrib/init/systemd/docker.socket
-[Unit]
-Description=Docker Socket for the API
-PartOf=docker.service
-
-[Socket]
-ListenStream=/var/run/docker.sock
-SocketMode=0660
-SocketUser=root
-SocketGroup=docker
-
-[Install]
-WantedBy=sockets.target
-EOL'
-
-  echo "\n\n-----Enabling via systemctl-----\n\n"
-  sudo systemctl daemon-reload
-  sudo systemctl enable docker
-  sudo systemctl start docker
-
-  echo "\n\n-----Docker version-----\n\n"
-  docker version
-
-  echo "\n\n-----Docker ps-----\n\n"
-  docker ps
-
-  echo "\n\n-----Removing docker files-----\n\n"
-  rm -rf docker.tgz docker
-
-
-  echo "\nDocker installed!\nAlthough you may need to update your GRUB to enable cgroup memory + swap.\nRun 'install docker-grub'"
+  sudo apt-get update
+  sudo apt-get install \
+     apt-transport-https \
+     ca-certificates \
+     curl \
+     gnupg2 \
+     software-properties-common -y
+  curl -fsSL https://download.docker.com/linux/$(. /etc/os-release; echo "$ID")/gpg | sudo apt-key add -
+  sudo apt-key fingerprint 0EBFCD88
+  sudo apt-get update
+  sudo apt-get install docker-ce
 }
 
-install_docker_grub() {
-  echo "\n\n-----Checking GRUB-----\n\n"
-  # Grub stuff for Debian
-  if grep -Fxq 'GRUB_CMDLINE_LINUX=""' /etc/default/grub
-  then
-    sudo sed -i.bak 's/GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"/g' /etc/default/grub
-    echo "\nAdded cgroup_enable=memory swapaccount=1 to /etc/default/grub.\nRun update-grub and reboot."
-  else
-    echo "\nParameters are already located in GRUB_CMDLINE_LINUX. Not updating"
-  fi
-}
 
 install_neovim() {
 	sudo apt-get install neovim -y
