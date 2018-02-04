@@ -739,7 +739,15 @@ install_oc() {
   wget $RELEASE -O openshift.tar.gz
   tar -xvf openshift.tar.gz --strip-components=1
   sudo mv oc /usr/local/bin/oc
-  rm -r openshift.tar.gz README.md LICENSE
+  rm openshift.tar.gz README.md LICENSE
+}
+
+install_minishift() {
+  RELEASE="1.11.0"
+  wget https://github.com/minishift/minishift/releases/download/v$RELEASE/minishift-$RELEASE-linux-amd64.tgz -O minishift.tar.gz
+  tar -xvf minishift.tar.gz --strip-components=1
+  sudo mv minishift /usr/local/bin/minishift
+  rm README.adoc LICENSE
 }
 
 install_kubectl() {

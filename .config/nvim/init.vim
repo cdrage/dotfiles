@@ -14,6 +14,7 @@ call plug#begin('~/.vim/plugged')
   Plug 'ervandew/supertab'
   Plug 'godlygeek/tabular'
   Plug 'plasticboy/vim-markdown'
+  Plug 'tarekbecker/vim-yaml-formatter'
 
   " Autocompletion
   Plug 'Shougo/deoplete.nvim', { 'do': ':UpdateRemotePlugins' }
