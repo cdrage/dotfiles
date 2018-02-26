@@ -42,8 +42,8 @@ export PATH="$HOME/.cargo/bin:$PATH"
 # ALIASES #
 ###########
 
-alias todo="vim $SPATH/txt/todo.txt"
-alias notes="vim $SPATH/txt/notes.txt"
+alias todo="vim $SPATH/txt/todo.md"
+alias notes="vim $SPATH/txt/notes.md"
 
 # Easier navigation
 alias ..="cd .."
@@ -84,6 +84,26 @@ alias dl-a='youtube-dl -x -f bestaudio --prefer-free-formats -i --output "%(titl
 #############
 # FUNCTIONS #
 #############
+
+youtube-dl-playlist() {
+OUT_FORMAT='%(uploader)s/%(title)s.%(ext)s'
+
+youtube-dl \
+    --ignore-config                 \
+    --ignore-errors                 \
+    --no-continue                   \
+    --geo-bypass                    \
+    --download-archive downloaded   \
+    -f bestaudio                    \
+    -f m4a                          \
+    --max-filesize 128m             \
+    --add-metadata                  \
+    --prefer-ffmpeg                 \
+    --embed-thumbnail               \
+    --metadata-from-title '%(artist)s - %(title)s' \
+    -o "$OUT_FORMAT"                \
+    $1
+}
 
 shout() {
   echo ""
@@ -143,6 +163,8 @@ twitch() {
   else
     local quality="high"
   fi
+  export QT_AUTO_SCREEN_SCALE_FACTOR=1
+  export QT_SCALE_FACTOR=0.6
   streamlink twitch.tv/$1 $quality
 }
 
@@ -763,13 +785,13 @@ install_kubectl() {
 install_terminator() {
   sudo apt-get install -y terminator
   mkdir -p ~/.config/terminator
-  cp $SPATH/dev/linux/dotfiles/.config/terminator/config ~/.config/terminator/config
+  cp dotfiles/.config/terminator/config ~/.config/terminator/config
 }
 
 install_tmux() {
   sudo apt-get install tmux
   git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
-  cp $SPATH/dev/linux/dotfiles/.tmux.conf ~/
+  cp dotfiles/.tmux.conf ~/
 }
 
 install_docker() {
@@ -782,37 +804,46 @@ install_docker() {
      software-properties-common -y
   curl -fsSL https://download.docker.com/linux/$(. /etc/os-release; echo "$ID")/gpg | sudo apt-key add -
   sudo apt-key fingerprint 0EBFCD88
+  sudo add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/$(. /etc/os-release; echo "$ID") \
+   $(lsb_release -cs) \
+   stable"
   sudo apt-get update
   sudo apt-get install docker-ce
+  sudo usermod -aG docker $USER
 }
 
+install_gnome_shortcuts() {
+  gsettings set org.gnome.desktop.wm.preferences resize-with-right-button true
+  gsettings set org.gnome.desktop.wm.preferences mouse-button-modifier '<Alt>'
+}
 
 install_neovim() {
 	sudo apt-get install neovim -y
-	curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
-    https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-	cp -r $SPATH/dev/linux/dotfiles/.config/nvim/ ~/.config/nvim
+	curl -fLo ~/.vim/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+	cp -r dotfiles/.config/nvim/ ~/.config/nvim
 }
 
-install_keys() {
+install_copy_private() {
   if ! ask "This will override any SSH / PGP keys, continue?"; then return 0; fi
   cp -r $SPATH/etc/keys/ssh/ ~/.ssh/
+
+  echo "going to also copy special .extra file"
+  cp $SPATH/dev/linux/dotfiles/.extra .
 }
 
 install_seafile() {
+  mkdir -p ~/seafile/files
 	docker run \
 	-d \
 	--name seafile-client \
 	-v ~/seafile:/data \
 	--restart=always \
 	cdrage/seafile-client
-	docker logs -f seafile-client
-	docker exec seafile-client /usr/bin/seaf-cli
-
 	echo ""
 	echo "Please add your first sync folder via:"
-	echo "docker exec seafile-client /usr/bin/seaf-cli sync -l YOUR_LIBRARY_ID -s YOUR_SEAFILE_SERVER -d /data/YOUR_FOLDER -u YOUR_EMAIL -p YOUR_PASSWORD"
-	echo ""
+	echo "docker exec -it seafile-client bash"
+  echo "/usr/bin/seaf-cli sync -l YOUR_LIBRARY_ID -s YOUR_SEAFILE_SERVER -d /data/files -u YOUR_EMAIL -p YOUR_PASSWORD"
 }
 
 install_golang() {
@@ -842,23 +873,30 @@ install_usage() {
   echo ""
   echo "Install / Update:"
   echo ""
-  echo "First-time-installations / new-machine:"
+  echo "New machine (in order):"
+  echo "  git clone https://github.com/cdrage/dotfiles"
+  echo "  copy"
+  echo "  install_gnome_shortcuts"
+  echo "  docker"
+  echo "  seafile"
   echo "  terminator"
   echo "  tmux"
   echo "  neovim"
-  echo "  keys"
-  echo ""
-  echo "Docker Containers:"
-  echo "  seafile"
+  echo "  copy_private"
   echo ""
   echo "Applications:"
-  echo "  docker [latest, master, 1.10.1]"
+  echo "  docker"
   echo "  docker-machine"
   echo "  docker-compose"
   echo "  docker-grub"
   echo "  oc"
   echo "  kubectl"
   echo "  go"
+}
+
+install_copy() {
+	cp -r dotfiles/.* .	
+	rm -rf .git*
 }
 
 
