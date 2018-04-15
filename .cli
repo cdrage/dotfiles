@@ -738,6 +738,7 @@ install_essential() {
     git \
     tmux \
     terminator \
+    python-pip \
     -y
   sudo apt-get install neovim -y
 }
@@ -862,6 +863,7 @@ install_neovim() {
   curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
     https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 	cp -r dotfiles/.config/nvim/ ~/.config/nvim
+  sudo pip install neovim
 }
 
 install_copy_private() {
@@ -913,27 +915,31 @@ install_usage() {
   echo ""
   echo "Install / Update:"
   echo ""
+  echo "First, we need to install sudo:"
+  echo " su root"
+  echo " source dotfiles/.cli && install sudo USERNAME"
+  echo ""
   echo "New machine (in order):"
-  echo "  sudo USERNAME (run as root!)"
   echo "  copy"
-  echo "  install_gnome_shortcuts"
+  echo "  gnome_shortcuts"
   echo "  essential"
   echo "  terminator"
   echo "  zsh"
   echo "  docker"
-  echo "  seafile"
   echo "  tmux"
   echo "  neovim"
   echo "  copy_private"
+  echo "  seafile (this will take a LONG time)"
   echo ""
-  echo "Applications:"
-  echo "  docker"
+  echo "When seafile is completed:"
+  echo " go"
+  echo ""
+  echo "Extra Applications:"
   echo "  docker-machine"
   echo "  docker-compose"
   echo "  docker-grub"
   echo "  oc"
   echo "  kubectl"
-  echo "  go"
 }
 
 install_copy() {
@@ -967,12 +973,12 @@ install() {
     install_essential
   elif [[ $cmd == "zsh" ]]; then
     install_zsh
+  elif [[ $cmd == "gnome_shortcuts" ]]; then
+    install_gnome_shortcuts
   elif [[ $cmd == "kubectl" ]]; then
     install_kubectl
   elif [[ $cmd == "vim" ]]; then
     install_vim
-  elif [[ $cmd == "seafile" ]]; then
-    install_seafile
   elif [[ $cmd == "neovim" ]]; then
     install_neovim
   elif [[ $cmd == "terminator" ]]; then
@@ -985,8 +991,6 @@ install() {
     install_seafile
   elif [[ $cmd == "go" ]]; then
     install_golang
-  elif [[ $cmd == "go" ]]; then
-    install_weechat_server
   else
     install_usage
   fi
