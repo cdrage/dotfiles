@@ -742,6 +742,27 @@ install_essential() {
   sudo apt-get install neovim -y
 }
 
+install_sudo() {
+
+  TARGET_USER=$USER
+
+  su root
+
+  apt-get install sudo -y
+
+	adduser "$TARGET_USER" sudo
+
+	gpasswd -a "$TARGET_USER" systemd-journal
+	gpasswd -a "$TARGET_USER" systemd-network
+
+	{ \
+		echo -e "${TARGET_USER} ALL=(ALL) NOPASSWD:ALL"; \
+	} >> /etc/sudoers
+
+  exit
+
+}
+
 
 install_docker_machine() {
   RELEASE=0.5.0
@@ -804,6 +825,7 @@ install_kubectl() {
 install_terminator() {
   mkdir -p ~/.config/terminator
   cp dotfiles/.config/terminator/config ~/.config/terminator/config
+  shout "Close this terminal and re-open in 'terminator'"
 }
 
 install_tmux() {
@@ -826,8 +848,11 @@ install_docker() {
    $(lsb_release -cs) \
    stable"
   sudo apt-get update
-  sudo apt-get install docker-ce
+  sudo apt-get install docker-ce -y
   sudo usermod -aG docker $USER
+
+  shout "Updating user permissions without having to re-log.."
+  sudo su -i $USER
 }
 
 install_gnome_shortcuts() {
@@ -890,14 +915,14 @@ install_usage() {
   echo "Install / Update:"
   echo ""
   echo "New machine (in order):"
-  echo "  git clone https://github.com/cdrage/dotfiles"
-  echo "  essential"
-  echo "  zsh"
+  echo "  sudo (run as root!)"
   echo "  copy"
   echo "  install_gnome_shortcuts"
+  echo "  essential"
+  echo "  terminator"
+  echo "  zsh"
   echo "  docker"
   echo "  seafile"
-  echo "  terminator"
   echo "  tmux"
   echo "  neovim"
   echo "  copy_private"
@@ -933,6 +958,10 @@ install() {
     install_docker_compose
   elif [[ $cmd == "docker-grub" ]]; then
     install_docker_grub
+  elif [[ $cmd == "sudo" ]]; then
+    install_sudo
+  elif [[ $cmd == "copy" ]]; then
+    install_copy
   elif [[ $cmd == "oc" ]]; then
     install_oc
   elif [[ $cmd == "essential" ]]; then
