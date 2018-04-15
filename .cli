@@ -744,9 +744,7 @@ install_essential() {
 
 install_sudo() {
 
-  TARGET_USER=$USER
-
-  su root
+  TARGET_USER=$1
 
   apt-get install sudo -y
 
@@ -915,7 +913,7 @@ install_usage() {
   echo "Install / Update:"
   echo ""
   echo "New machine (in order):"
-  echo "  sudo (run as root!)"
+  echo "  sudo USERNAME (run as root!)"
   echo "  copy"
   echo "  install_gnome_shortcuts"
   echo "  essential"
@@ -959,7 +957,7 @@ install() {
   elif [[ $cmd == "docker-grub" ]]; then
     install_docker_grub
   elif [[ $cmd == "sudo" ]]; then
-    install_sudo
+    install_sudo ${@:2}
   elif [[ $cmd == "copy" ]]; then
     install_copy
   elif [[ $cmd == "oc" ]]; then
