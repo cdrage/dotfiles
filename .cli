@@ -850,7 +850,7 @@ install_docker() {
   sudo usermod -aG docker $USER
 
   shout "Updating user permissions without having to re-log.."
-  sudo su -i $USER
+  sudo su - $USER
 }
 
 install_gnome_shortcuts() {
