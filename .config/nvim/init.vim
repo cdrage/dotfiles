@@ -16,6 +16,10 @@ call plug#begin('~/.vim/plugged')
   Plug 'plasticboy/vim-markdown'
   Plug 'tarekbecker/vim-yaml-formatter'
 
+  " Git specific
+  Plug 'tpope/vim-rhubarb'
+  Plug 'tpope/vim-fugitive'
+
   " Autocompletion
   Plug 'Shougo/deoplete.nvim', { 'do': ':UpdateRemotePlugins' }
   Plug 'roxma/nvim-yarp'

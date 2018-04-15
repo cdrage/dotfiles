@@ -42,9 +42,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 # ALIASES #
 ###########
 
-alias todo="vim $SPATH/txt/todo.md"
 alias notes="vim $SPATH/txt/notes.md"
-alias bus="vim $SPATH/txt/business.md"
 
 # Easier navigation
 alias ..="cd .."
@@ -884,6 +882,7 @@ install_usage() {
   echo ""
   echo "New machine (in order):"
   echo "  git clone https://github.com/cdrage/dotfiles"
+  echo "  zsh"
   echo "  copy"
   echo "  install_gnome_shortcuts"
   echo "  docker"
@@ -908,6 +907,10 @@ install_copy() {
 	rm -rf .git*
 }
 
+install_zsh() {
+  sudo apt-get install curl zsh -y
+  sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
+}
 
 install() {
   local cmd=$1
@@ -1032,79 +1035,14 @@ kvm_ssh() {
   ssh $VM_USER@$VM_IP
 }
 
-dev_usage() {
-  echo "Development environments"
-  echo ""
-  echo "Usage:"
-  echo " dev {k8s|os} {up|down|reset}"
-  echo ""
-}
+wait_for_port() {
+  echo "$1:$2: Waiting for port $2"
 
-dev() {
-  local cmd=$1
+  # Wait until the SSH port is up
+  until nc -w 5 -z $1 $2 &>/dev/null;
+  do
+      sleep 1
+  done
 
-  if [[ $cmd == "k8s" ]]; then
-    dev_k8s ${@:2}
-  elif [[ $cmd == "os" ]]; then
-    dev_openshift ${@:2}
-  else
-    dev_usage 
-  fi
-}
-
-dev_k8s(){
-  local choice=$1
-
-  if [ ! -f /usr/bin/kubectl ] && [ ! -f /usr/local/bin/kubectl ]; then
-    echo "No kubectl bin exists! Install the bin to continue :)."
-    return 1
-  fi
-
-  if [[ $choice == "up" ]]; then
-    
-    minikube start --vm-driver=kvm2
-
-
-  elif [[ $choice == "down" ]]; then
-
-    minikube delete
-  
-  elif [[ $choice == "restart" ]]; then
-    dev_k8s down
-    dev_k8s up
-
-  else
-    echo "Kubernetes dev environment"
-    echo ""
-    echo "Usage:"
-    echo " dev_k8s {up|down|restart}"
-    echo ""
-    echo "Commands:"
-    echo " up"
-    echo " down"
-    echo " restart"
-  fi
-}
-
-dev_openshift(){
-  local choice=$1
-
-  if [ ! -f /usr/bin/oc ] && [ ! -f /usr/local/bin/oc ]; then
-    echo "No oc bin exists? Please install."
-    return 1
-  fi
-
-  if [[ $choice == "up" ]]; then
-    oc cluster up
-  elif [[ $choice == "down" ]]; then
-    oc cluster down
-  elif [[ $choice == "restart" ]]; then
-    dev_openshift down
-    dev_openshift up
-  else
-    echo "OpenShift dev environment"
-    echo ""
-    echo "Usage:"
-    echo " openshift {up|down|restart}"
-  fi
+  echo "$1:$2: ONLINE"
 }
