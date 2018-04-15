@@ -730,6 +730,18 @@ backup() {
 # INSTALL #
 ###########
 
+install_essential() {
+  sudo apt-get install \
+    vim \
+    curl \
+    zsh \
+    git \
+    tmux \
+    terminator \
+    -y
+  sudo apt-get install neovim -y
+}
+
 
 install_docker_machine() {
   RELEASE=0.5.0
@@ -790,13 +802,11 @@ install_kubectl() {
 }
 
 install_terminator() {
-  sudo apt-get install -y terminator
   mkdir -p ~/.config/terminator
   cp dotfiles/.config/terminator/config ~/.config/terminator/config
 }
 
 install_tmux() {
-  sudo apt-get install tmux
   git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
   cp dotfiles/.tmux.conf ~/
 }
@@ -826,7 +836,6 @@ install_gnome_shortcuts() {
 }
 
 install_neovim() {
-	sudo apt-get install neovim -y
 	curl -fLo ~/.vim/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 	cp -r dotfiles/.config/nvim/ ~/.config/nvim
 }
@@ -882,6 +891,7 @@ install_usage() {
   echo ""
   echo "New machine (in order):"
   echo "  git clone https://github.com/cdrage/dotfiles"
+  echo "  essential"
   echo "  zsh"
   echo "  copy"
   echo "  install_gnome_shortcuts"
@@ -925,6 +935,10 @@ install() {
     install_docker_grub
   elif [[ $cmd == "oc" ]]; then
     install_oc
+  elif [[ $cmd == "essential" ]]; then
+    install_essential
+  elif [[ $cmd == "zsh" ]]; then
+    install_zsh
   elif [[ $cmd == "kubectl" ]]; then
     install_kubectl
   elif [[ $cmd == "vim" ]]; then
