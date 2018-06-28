@@ -806,7 +806,7 @@ install_minishift() {
   wget https://github.com/minishift/minishift/releases/download/v$RELEASE/minishift-$RELEASE-linux-amd64.tgz -O minishift.tar.gz
   tar -xvf minishift.tar.gz --strip-components=1
   sudo mv minishift /usr/local/bin/minishift
-  rm README.adoc LICENSE
+  rm README.adoc LICENSE minishift.tar.gz
 }
 
 install_minikube() {
