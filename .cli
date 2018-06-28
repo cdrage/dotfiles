@@ -84,6 +84,11 @@ alias dl-a='youtube-dl -x -f bestaudio --prefer-free-formats -i --output "%(titl
 # FUNCTIONS #
 #############
 
+sed-replace() {
+    find . -type f -name "*.*" -not -path "*/.git/*" -not -path "*/vendor/*" -print0 | xargs -0 sed -i "s%$1%$2%g"
+}
+
+
 youtube-dl-playlist() {
 OUT_FORMAT='%(uploader)s/%(title)s.%(ext)s'
 
@@ -339,6 +344,7 @@ git-set-upstream-remote() {
   git remote remove origin
   git remote add origin git@github.com:$GITHUB_USER/$NAME.git
   git remote add upstream git@github.com:$UPSTREAM_REPO.git
+  git remote set-url --push upstream no_push
   echo "Remote git's set"
   git remote -v
 }
@@ -796,7 +802,7 @@ install_oc() {
 }
 
 install_minishift() {
-  RELEASE="1.11.0"
+  RELEASE="1.20.0"
   wget https://github.com/minishift/minishift/releases/download/v$RELEASE/minishift-$RELEASE-linux-amd64.tgz -O minishift.tar.gz
   tar -xvf minishift.tar.gz --strip-components=1
   sudo mv minishift /usr/local/bin/minishift
@@ -940,6 +946,8 @@ install_usage() {
   echo "  docker-grub"
   echo "  oc"
   echo "  kubectl"
+  echo "  minishift"
+  echo "  minikube"
 }
 
 install_copy() {
@@ -989,6 +997,8 @@ install() {
     install_tmux
   elif [[ $cmd == "seafile" ]]; then
     install_seafile
+  elif [[ $cmd == "minishift" ]]; then
+    install_minishift
   elif [[ $cmd == "go" ]]; then
     install_golang
   else
@@ -1092,3 +1102,5 @@ wait_for_port() {
 
   echo "$1:$2: ONLINE"
 }
+
+
