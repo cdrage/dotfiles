@@ -745,8 +745,9 @@ install_essential() {
     tmux \
     terminator \
     python-pip \
+    python3-pip \
+    mosh
     -y
-  sudo apt-get install neovim -y
 }
 
 install_sudo() {
@@ -866,15 +867,30 @@ install_gnome_shortcuts() {
 }
 
 install_neovim() {
+  # We will have to build from source
+  git clone https://github.com/neovim/neovim
+  sudo apt-get install ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip -y
+  cd neovim
+  make
+  sudo make install
+  cd ..
+  rm -rf neovim
+
+  # For plugins
   curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
     https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+  sudo pip3 install neovim
+
+  # Config
 	cp -r dotfiles/.config/nvim/ ~/.config/nvim
-  sudo pip install neovim
+
+  # Install plugins
+  nvim +PlugInstall +qall
 }
 
 install_copy_private() {
   if ! ask "This will override any SSH / PGP keys, continue?"; then return 0; fi
-  cp -r $SPATH/etc/keys/ssh/ ~/.ssh/
+  cp -r $SPATH/etc/keys/ssh/ ~/.ssh
 
   echo "going to also copy special .extra file"
   cp $SPATH/dev/linux/dotfiles/.extra .
