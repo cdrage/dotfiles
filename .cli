@@ -79,6 +79,7 @@ alias hosts='sudo vim /etc/hosts'
 alias untar='tar xvf'
 alias battery='upower -i /org/freedesktop/UPower/devices/battery_BAT0'
 alias dl-a='youtube-dl -x -f bestaudio --prefer-free-formats -i --output "%(title)s.%(ext)s"'
+alias sync-copy="rsync -avz"
 
 #############
 # FUNCTIONS #
@@ -801,11 +802,15 @@ install_oc() {
 }
 
 install_minishift() {
-  RELEASE="1.20.0"
+  RELEASE="1.23.0"
   wget https://github.com/minishift/minishift/releases/download/v$RELEASE/minishift-$RELEASE-linux-amd64.tgz -O minishift.tar.gz
   tar -xvf minishift.tar.gz --strip-components=1
   sudo mv minishift /usr/local/bin/minishift
-  rm README.adoc LICENSE
+  rm README.adoc LICENSE minishift.tar.gz
+
+  # Install minishift kvm plugin
+  sudo curl -L https://github.com/dhiltgen/docker-machine-kvm/releases/download/v0.7.0/docker-machine-driver-kvm -o /usr/local/bin/docker-machine-driver-kvm
+  sudo chmod +x /usr/local/bin/docker-machine-driver-kvm
 }
 
 install_minikube() {
@@ -813,6 +818,17 @@ install_minikube() {
   curl -Lo minikube https://storage.googleapis.com/minikube/releases/v$RELEASE/minikube-linux-amd64
   chmod +x minikube
   sudo mv minikube /usr/local/bin/
+
+  # Install plugin
+  curl -LO https://storage.googleapis.com/minikube/releases/latest/docker-machine-driver-kvm2 && chmod +x docker-machine-driver-kvm2 && sudo mv docker-machine-driver-kvm2 /usr/local/bin/
+}
+
+install_helm() {
+  RELEASE="2.9.1"
+  curl https://storage.googleapis.com/kubernetes-helm/helm-v$RELEASE-linux-amd64.tar.gz -o helm.tar.gz
+  tar -xvf helm.tar.gz 
+  sudo mv linux-amd64/helm /usr/local/bin/helm
+  rm -rf helm* linux-amd64
 }
 
 
@@ -894,7 +910,7 @@ install_seafile() {
 }
 
 install_golang() {
-  export GO_VERSION=1.9
+  export GO_VERSION=1.11
   export GO_SRC=/usr/local/go
 
   # purge old src
@@ -948,12 +964,14 @@ install_usage() {
   echo "  kubectl"
   echo "  minishift"
   echo "  minikube"
+  echo "  helm"
 }
 
 install_libvirt() {
   sudo apt-get install qemu-kvm libvirt-clients libvirt-daemon-system -y
   sudo adduser $USER libvirt
   sudo adduser $USER libvirt-qemu
+  sudo virsh net-autostart default
 }
 
 install_copy() {

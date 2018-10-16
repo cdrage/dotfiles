@@ -15,7 +15,6 @@ call plug#begin('~/.vim/plugged')
   Plug 'godlygeek/tabular'
   Plug 'plasticboy/vim-markdown'
   Plug 'tarekbecker/vim-yaml-formatter'
-  Plug 'mzlogin/vim-markdown-toc'
 
   " Git specific
   Plug 'tpope/vim-rhubarb'
@@ -35,13 +34,6 @@ call plug#begin('~/.vim/plugged')
   " Go
   Plug 'fatih/vim-go', { 'do': ':GoInstallBinaries' }
   Plug 'zchee/deoplete-go', { 'do': 'make' }
-
-  " Snippets
-	Plug 'Shougo/neosnippet.vim'
-  Plug 'Shougo/neosnippet-snippets'
-
-  " Linting
-  Plug 'w0rp/ale'
 
   " Rust
   Plug 'rust-lang/rust.vim'
@@ -72,38 +64,6 @@ set number
 set t_Co=256
 colors zenburn
 set encoding=utf-8
-
-" 
-" FOLDING
-"
-" set foldmethod=syntax
-
-" 
-" CODE LINTING
-"
-
-" Error and warning signs.
-let g:ale_sign_error = '⤫'
-let g:ale_sign_warning = '⚠'
-" Enable integration with airline.
-let g:airline#extensions#ale#enabled = 1
-
-"
-" GO STUFF
-"
-
-" Highlight
-let g:go_highlight_build_constraints = 1
-let g:go_highlight_extra_types = 1
-let g:go_highlight_fields = 1
-let g:go_highlight_functions = 1
-let g:go_highlight_methods = 1
-let g:go_highlight_operators = 1
-let g:go_highlight_structs = 1
-let g:go_highlight_types = 1
-
-" Highlight same names
-let g:go_auto_sameids = 1
 
 " 
 " YAML STUFF
@@ -186,6 +146,11 @@ if &term =~ "xterm" || &term =~ "screen"
   map <Esc>[24~ <F12>
 endif
 
+" Snippet stuff
+let g:UltiSnipsSnippetDirectories = [$HOME.'/.vim/mysnippets']
+let g:ycm_key_list_select_completion=[]
+let g:ycm_key_list_previous_completion=[]
+
 " Disable scratch window
 set completeopt-=preview
 
@@ -202,26 +167,3 @@ noremap <Leader>p "*p
 noremap <Leader>Y "+y
 noremap <Leader>P "+p
 set mouse=v
-
-" Snippets!
-" Plugin key-mappings.
-" Note: It must be "imap" and "smap".  It uses <Plug> mappings.
-imap <C-k>     <Plug>(neosnippet_expand_or_jump)
-smap <C-k>     <Plug>(neosnippet_expand_or_jump)
-xmap <C-k>     <Plug>(neosnippet_expand_target)
-
-" SuperTab like snippets behavior.
-" Note: It must be "imap" and "smap".  It uses <Plug> mappings.
-"imap <expr><TAB>
-" \ pumvisible() ? "\<C-n>" :
-" \ neosnippet#expandable_or_jumpable() ?
-" \    "\<Plug>(neosnippet_expand_or_jump)" : "\<TAB>"
-smap <expr><TAB> neosnippet#expandable_or_jumpable() ?
-\ "\<Plug>(neosnippet_expand_or_jump)" : "\<TAB>"
-
-" For conceal markers.
-if has('conceal')
-  set conceallevel=2 concealcursor=niv
-endif
-
-let g:neosnippet#snippets_directory='~/.config/nvim/mysnippets'
