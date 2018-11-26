@@ -55,6 +55,7 @@ alias -- -="cd -"
 # Shortcuts
 alias g="git"
 alias d=gogo # d for dev :)
+alias k="kubectl"
 
 # ls stuff
 colorflag="--color"
@@ -273,6 +274,13 @@ check-domain() {
 ##################
 # FUNCTIONS: GIT #
 ##################
+
+
+# Clean all files
+git-clean() {
+  git reset --hard
+  git clean -d -f
+}
 
 # Commit and push cause I'm lazy af
 git-lazy() {
@@ -791,7 +799,7 @@ install_docker_compose() {
 }
 
 install_oc() {
-  RELEASE="https://github.com/openshift/origin/releases/download/v3.6.0/openshift-origin-client-tools-v3.6.0-c4dd4cf-linux-64bit.tar.gz"
+  RELEASE="https://github.com/openshift/origin/releases/download/v3.11.0/openshift-origin-client-tools-v3.11.0-0cbc58b-linux-64bit.tar.gz"
   echo ""
   echo $RELEASE
   echo ""
@@ -802,7 +810,7 @@ install_oc() {
 }
 
 install_minishift() {
-  RELEASE="1.23.0"
+  RELEASE="1.26.1"
   wget https://github.com/minishift/minishift/releases/download/v$RELEASE/minishift-$RELEASE-linux-amd64.tgz -O minishift.tar.gz
   tar -xvf minishift.tar.gz --strip-components=1
   sudo mv minishift /usr/local/bin/minishift

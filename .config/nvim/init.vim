@@ -225,3 +225,5 @@ if has('conceal')
 endif
 
 let g:neosnippet#snippets_directory='~/.config/nvim/mysnippets'
+
+let g:vim_markdown_conceal = 0

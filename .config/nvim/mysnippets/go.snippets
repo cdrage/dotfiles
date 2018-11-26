@@ -34,6 +34,7 @@ snippet occlient_test "occlient test"
     }
     for _, tt := range tests {
       t.Run(tt.name, func(t *testing.T) {
+
         fakeClient, fakeClientSet := FakeNew()
 
         // Fake Client examples
@@ -47,7 +48,7 @@ snippet occlient_test "occlient test"
 
         // Fake getting DC
         fakeClientSet.AppsClientset.PrependReactor("get", "deploymentconfigs", func(action ktesting.Action) (bool, runtime.Object, error) {
-				  return true, &tt.args.dcBefore, nil
+          return true, &tt.args.dcBefore, nil
         })
 
         // Fake getting imagestreams
@@ -68,21 +69,16 @@ snippet occlient_test "occlient test"
         // Run function $1
         err := fakeClient.$1()
 
-        // Error checking $1
-        if !tt.wantErr == (err != nil) {
-          t.Errorf(" client.$1() unexpected error %v, wantErr %v", err, tt.wantErr)
+        if err == nil && !tt.wantErr {
+          // Check to see how many actions are being ran
+          if (len(fakeClientSet.AppsClientset.Actions()) != tt.actions) && !tt.wantErr {
+            t.Errorf("expected %v action(s) in $1 got %v: %v", tt.actions, len(fakeClientSet.AppsClientset.Actions()), fakeClientSet.AppsClientset.Actions())
+          }
+        } else if err == nil && tt.wantErr {
+          t.Error("test failed, expected: false, got true")
+        } else if err != nil && !tt.wantErr {
+          t.Errorf("test failed, expected: no error, got error: %s", err.Error())
         }
-
-			if err == nil && !tt.wantErr {
-        // Check to see how many actions are being ran
-        if (len(fakeClientSet.AppsClientset.Actions()) != tt.actions) && (tt.wantErr != true) {
-          t.Errorf("expected %v action(s) in $1 got %v: %v", tt.actions, len(fakeClientSet.AppsClientset.Actions()), fakeClientSet.AppsClientset.Actions())
-        }
-			} else if err == nil && tt.wantErr {
-				t.Error("test failed, expected: false, got true")
-			} else if err != nil && !tt.wantErr {
-				t.Errorf("test failed, expected: no error, got error: %s", err.Error())
-			}
 
       })
     }
