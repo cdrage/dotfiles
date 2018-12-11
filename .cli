@@ -718,6 +718,10 @@ backup_config() {
   cp -r ~/.config/nvim $SPATH/dev/linux/dotfiles/.config/
 }
 
+backup_scripts() {
+  cp -r ~/.scripts $SPATH/dev/linux/dotfiles/.scripts
+}
+
 backup_usage() {
   echo "Backup"
   echo ""
@@ -733,9 +737,12 @@ backup() {
     backup_dotfiles
   elif [[ $cmd == "config" ]]; then
     backup_config
+  elif [[ $cmd == "scripts" ]]; then
+    backup_scripts
   elif [[ $cmd == "all" ]]; then
     backup_dotfiles
     backup_config
+    backup_scripts
   else
     backup_usage 
   fi
@@ -918,7 +925,7 @@ install_seafile() {
 }
 
 install_golang() {
-  export GO_VERSION=1.11
+  export GO_VERSION=1.11.2
   export GO_SRC=/usr/local/go
 
   # purge old src
@@ -1042,27 +1049,52 @@ install() {
 # DEV / CLUSTER ENVIRONMENTS
 ##########
 
-fedoraVM=fedora
-fedoraUSER=root
-rhelVM=rhel
-rhelUSER=rhel
+FEDORA_VM=fedora
+FEDORA_USER=root
+WINDOWS_VM=Windows
+WINDOWS_USER=admin
+RHEL_VM=rhel
+RHEL_USER=rhel
 
 
 vm_usage() {
   echo "VM environments"
   echo ""
   echo "Usage:"
-  echo " vm {fedora|rhel} {up|down}"
+  echo " vm {windows|fedora|rhel} {up|down}"
+  echo " vm ips"
   echo ""
+}
+
+vm_ips() {
+
+  for VM in `sudo virsh list --name` 
+  do
+    if [[ ! -z "$VM" ]]
+    then
+      VM_IP=$(for mac in `sudo virsh domiflist $VM |grep -o -E "([0-9a-f]{2}:){5}([0-9a-f]{2})"` ; do sudo arp -e |grep $mac  |grep -o -P "^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}" ; done)
+      echo $VM: $VM_IP
+    fi
+  done
+}
+
+vm_windows() {
+  local cmd=$1
+
+  if [[ $cmd == "up" ]]; then
+    kvm_ssh $WINDOWS_VM $WINDOWS_USER $WINDOWS_PASSWORD
+  elif [[ $cmd == "down" ]]; then
+    sudo virsh shutdown $WINDOWS_VM
+  fi
 }
 
 vm_fedora() {
   local cmd=$1
 
   if [[ $cmd == "up" ]]; then
-    kvm_ssh $fedoraVM $fedoraUSER
+    kvm_ssh $FEDORA_VM $FEDORA_USER
   elif [[ $cmd == "down" ]]; then
-    sudo virsh shutdown $fedoraVM
+    sudo virsh shutdown $FEDORA_VM
   fi
 }
 
@@ -1070,9 +1102,9 @@ vm_rhel() {
   local cmd=$1
 
   if [[ $cmd == "up" ]]; then
-    kvm_ssh $rhelVM $rhelUSER
+    kvm_ssh $RHEL_VM $RHEL_USER
   elif [[ $cmd == "down" ]]; then
-    sudo virsh shutdown $rhelVM
+    sudo virsh shutdown $RHEL_VM
   fi
 }
 
@@ -1083,6 +1115,8 @@ vm() {
     vm_fedora ${@:2}
   elif [[ $cmd == "rhel" ]]; then
     vm_rhel ${@:2}
+  elif [[ $cmd == "windows" ]]; then
+    vm_windows ${@:2}
   else
     vm_usage 
   fi
@@ -1120,7 +1154,12 @@ kvm_ssh() {
   done
 
   # SSH into it
-  ssh $VM_USER@$VM_IP
+  if [ -z "$3" ]
+  then
+    ssh $VM_USER@$VM_IP
+  else
+    sshpass -p$3 ssh $VM_USER@$VM_IP
+  fi
 }
 
 wait_for_port() {
