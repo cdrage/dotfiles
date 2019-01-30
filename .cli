@@ -86,6 +86,24 @@ alias sync-copy="rsync -avz"
 # FUNCTIONS #
 #############
 
+pass-gen() {
+  if [ -z "$1" ]
+  then
+    echo "plz supply username"
+    return 1
+  fi
+
+  if [ -z "$2" ]
+  then
+    echo "plz supply pass"
+    return 1
+  fi
+
+  pass=`htpasswd -bnBC 10 "" $2 | tr -d ':'`
+  echo $1:$pass
+
+}
+
 sed-replace() {
     find . -type f -name "*.*" -not -path "*/.git/*" -not -path "*/vendor/*" -print0 | xargs -0 sed -i "s%$1%$2%g"
 }
@@ -211,9 +229,11 @@ spoof_mac() {
     echo "plz supply your network interface"
     return 1
   fi
-  sudo service network-manager stop
+  sudo service network-manager stop || true
+  sudo ifconfig $1 down || true
   sudo macchanger -r $1
-  sudo service network-manager start
+  sudo service network-manager start || true
+  sudo ifconfig $1 up || true
   echo "shits spoofed"
 }
 
@@ -605,7 +625,7 @@ setup_k8s_slack() {
     -r "/server add slack $K8S_SLACK_HOST/6667 -autoconnect -ssl -ssl_dhkey_size=512 -password=$K8S_SLACK_PASSWORD -username=$K8S_SLACK_USERNAME -nicks=$K8S_SLACK_USERNAME;/connect slack;/join $K8S_SLACK_CHANNELS;/script install atcomplete.pl;/set weechat.completion.nick_completer '';/set weechat.bar.nicklist.hidden false;/set weechat.bar.nicklist.position right"
 }
 
-setup_personal_irc() {
+setup_irc() {
   del_stopped irc
   docker run -it \
     -v /etc/localtime:/etc/localtime:ro \
@@ -817,7 +837,7 @@ install_oc() {
 }
 
 install_minishift() {
-  RELEASE="1.26.1"
+  RELEASE="1.29.0"
   wget https://github.com/minishift/minishift/releases/download/v$RELEASE/minishift-$RELEASE-linux-amd64.tgz -O minishift.tar.gz
   tar -xvf minishift.tar.gz --strip-components=1
   sudo mv minishift /usr/local/bin/minishift
@@ -848,7 +868,7 @@ install_helm() {
 
 
 install_kubectl() {
-  RELEASE=1.7.5
+  RELEASE=1.13.2
   echo ""
   echo $RELEASE
   echo ""
