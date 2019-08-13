@@ -7,6 +7,45 @@ snippet e2etest "odo e2e test"
     Expect(getDc).NotTo(ContainSubstring(foobar))
   })
 
+snippet unit_test "unit test"
+  func Test${1}(t *testing.T) {
+    type args struct {
+      input  string
+      output string
+    }
+    tests := []struct {
+      name string
+      args args
+      wantErr bool
+    }{
+      {
+        name: "Case 1 - ",
+        args: args{
+          input:  "foo",
+          output: "bar",
+        },
+        wantErr: false,
+      },
+    }
+    for _, tt := range tests {
+      t.Run(tt.name, func(t *testing.T) {
+
+        // Run function ${1}
+        output := ${1}(tt.args.input)
+
+        if !tt.wantErr == (err != nil) {
+          t.Errorf("unexpected error %v, wantErr %v", err, tt.wantErr)
+          return
+        }
+
+        if !(reflect.DeepEqual(output, tt.args.output)) {
+          t.Errorf("expected %v, got %v", tt.args.output, output)
+        }
+
+      })
+    }
+  }
+
 
 snippet occlient_test "occlient test"
   func Test${1}(t *testing.T) {

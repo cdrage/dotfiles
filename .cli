@@ -80,7 +80,7 @@ alias hosts='sudo vim /etc/hosts'
 alias untar='tar xvf'
 alias battery='upower -i /org/freedesktop/UPower/devices/battery_BAT0'
 alias dl-a='youtube-dl -x -f bestaudio --prefer-free-formats -i --output "%(title)s.%(ext)s"'
-alias sync-copy="rsync -avz"
+alias rsync-copy="rsync -avz --progress"
 
 #############
 # FUNCTIONS #
@@ -189,7 +189,7 @@ twitch() {
   fi
   export QT_AUTO_SCREEN_SCALE_FACTOR=1
   export QT_SCALE_FACTOR=0.6
-  streamlink twitch.tv/$1 $quality
+  streamlink --twitch-disable-ads twitch.tv/$1 $quality
 }
 
 digga() {
@@ -301,6 +301,16 @@ git-clean() {
   git reset --hard
   git clean -d -f
 }
+
+# Add another commit..
+git-add() {
+  if [ -z "$1" ]
+  then
+    echo "Supply a message yo"
+    return 1
+  fi
+}
+
 
 # Commit and push cause I'm lazy af
 git-lazy() {
@@ -528,11 +538,16 @@ git-delete-merged() {
 #####################
 
 # removes all stoppped, dead, 'created' containers && dangling images
-dcleanup(){
+docker-cleanup(){
   docker rm $(docker ps --filter status=exited -q 2>/dev/null) 2>/dev/null
   docker rm $(docker ps --filter status=created -q 2>/dev/null) 2>/dev/null
   docker rm $(docker ps --filter status=dead -q 2>/dev/null) 2>/dev/null
   docker rmi $(docker images --filter dangling=true -q 2>/dev/null) 2>/dev/null
+}
+
+# purges ALL images
+docker-purge(){
+  docker rmi $(docker images -q)
 }
 
 # if it relies on another container
@@ -837,7 +852,7 @@ install_oc() {
 }
 
 install_minishift() {
-  RELEASE="1.29.0"
+  RELEASE="1.34.0"
   wget https://github.com/minishift/minishift/releases/download/v$RELEASE/minishift-$RELEASE-linux-amd64.tgz -O minishift.tar.gz
   tar -xvf minishift.tar.gz --strip-components=1
   sudo mv minishift /usr/local/bin/minishift
@@ -945,7 +960,7 @@ install_seafile() {
 }
 
 install_golang() {
-  export GO_VERSION=1.11.2
+  export GO_VERSION=1.11.5
   export GO_SRC=/usr/local/go
 
   # purge old src

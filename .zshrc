@@ -22,3 +22,6 @@ export NVM_DIR="$HOME/.nvm"
 
 # added by travis gem
 [ -f /home/wikus/.travis/travis.sh ] && source /home/wikus/.travis/travis.sh
+
+autoload -U +X bashcompinit && bashcompinit
+
