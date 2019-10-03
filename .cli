@@ -37,6 +37,34 @@ export PATH=/usr/local/bin:/usr/local/go/bin:$PATH:$GOPATH/bin:/sbin
 # Rust
 export PATH="$HOME/.cargo/bin:$PATH"
 
+###############
+# COLOR STUFF #
+###############
+
+RED='\033[0;31m'
+BLUE='\033[0;36m'
+NC='\033[0m'
+
+red() {
+  echo -e "$RED$1$NC"
+}
+
+blue() {
+  echo -e "$BLUE$1$NC"
+}
+
+bold() {
+  echo -e "\033[1m$1\033[0m"
+}
+
+italic() {
+  echo -e "\033[3m$1\033[0m"
+}
+
+underline() {
+  echo -e "\033[4m$1\033[0m"
+}
+
 
 ###########
 # ALIASES #
@@ -105,7 +133,12 @@ pass-gen() {
 }
 
 sed-replace() {
+  if [ -z "$3" ]
+  then
     find . -type f -name "*.*" -not -path "*/.git/*" -not -path "*/vendor/*" -print0 | xargs -0 sed -i "s%$1%$2%g"
+  else
+    find $3 -type f -name "*.*" -not -path "*/.git/*" -not -path "*/vendor/*" -print0 | xargs -0 sed -i "s%$1%$2%g"
+  fi
 }
 
 
@@ -129,13 +162,6 @@ youtube-dl \
     $1
 }
 
-shout() {
-  echo ""
-  echo "=========="
-  echo $1
-  echo "=========="
-  echo ""
-}
 
 ask() {
     # http://djm.me/ask
@@ -155,11 +181,9 @@ ask() {
         fi
 
         # Ask the question (not using "read -p" as it uses stderr not stdout)
-        echo "====="
-        echo -n "$1 "
-        echo -n "[$prompt] "
         echo ""
-        echo "====="
+        blue "$1 "
+        blue "[$prompt] "
 
         # Read the answer (use /dev/tty in case stdin is redirected from somewhere else)
         read REPLY </dev/tty
@@ -512,20 +536,14 @@ git-pr() {
     return 1
   fi
 
-  echo "==== INFO ===="
-  echo "Origin: " $ORIGIN_REPO/$BRANCH
-  echo "Upstream: " $UPSTREAM_REPO/$UPSTREAM_BRANCH
-  echo "=============="
+  bold "Origin:  $ORIGIN_REPO/$BRANCH"
+  bold "Upstream:  $UPSTREAM_REPO/$UPSTREAM_BRANCH"
 
-
-  echo ""
-  echo "==== MESSAGE ===="
   export PR="$(git --no-pager log -1 --pretty=%s%n%n%b)"
-  echo $PR
-  echo "================="
   echo ""
+  italic $PR
 
-  ask && hub pull-request -b $UPSTREAM_REPO:$UPSTREAM_BRANCH -h $ORIGIN_REPO:$BRANCH -m $PR
+  ask "Push PR?" && hub pull-request -b $UPSTREAM_REPO:$UPSTREAM_BRANCH -h $ORIGIN_REPO:$BRANCH -m $PR
 }
 
 # Delete's all merged PR branches
@@ -960,7 +978,7 @@ install_seafile() {
 }
 
 install_golang() {
-  export GO_VERSION=1.11.5
+  export GO_VERSION=1.13
   export GO_SRC=/usr/local/go
 
   # purge old src

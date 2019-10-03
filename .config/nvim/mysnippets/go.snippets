@@ -1,11 +1,21 @@
 snippet e2etest "odo e2e test"
-  It("${1}", func() {
-    runCmd("${2}")
-    getDc := runCmd("oc get dc foobar-" + appTestName + " -o go-template='" +
-      "{{range .spec.template.spec.initContainers}}" +
-      "{{.name}}{{end}}'")
-    Expect(getDc).NotTo(ContainSubstring(foobar))
-  })
+	Context("${1}", func() {
+
+		// Create a project
+		JustBeforeEach(func() {
+			project = helper.CreateRandProject()
+			app = helper.RandString(7)
+		})
+		JustAfterEach(func() {
+			helper.DeleteProject(project)
+		})
+
+		It("${2}", func() {
+			output := helper.CmdShouldPass("odo", "command", "test", "here")
+			Expect(output).To(ContainSubstring("checkCommandOutput"))
+		})
+
+	})
 
 snippet unit_test "unit test"
   func Test${1}(t *testing.T) {
@@ -30,9 +40,13 @@ snippet unit_test "unit test"
     for _, tt := range tests {
       t.Run(tt.name, func(t *testing.T) {
 
-        // Run function ${1}
-        output := ${1}(tt.args.input)
+        // Run function $1
+        output := $1(tt.args.input)
 
+        ${0:${VISUAL}}
+
+        // OPTIONAL
+        // Check for error
         if !tt.wantErr == (err != nil) {
           t.Errorf("unexpected error %v, wantErr %v", err, tt.wantErr)
           return
