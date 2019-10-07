@@ -34,7 +34,7 @@ call plug#begin('~/.vim/plugged')
 
   " Go
   Plug 'fatih/vim-go', { 'do': ':GoInstallBinaries' }
-  Plug 'zchee/deoplete-go', { 'do': 'make' }
+  Plug 'deoplete-plugins/deoplete-go', { 'do': 'make'}
 
   " Snippets
 	Plug 'Shougo/neosnippet.vim'
