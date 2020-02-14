@@ -46,6 +46,9 @@ call plug#begin('~/.vim/plugged')
   " Rust
   Plug 'rust-lang/rust.vim'
 
+  " Terraform
+  Plug 'hashivim/vim-terraform'
+
 call plug#end()
 
 " Revert back to normal
@@ -58,6 +61,13 @@ syntax on
 
 let $NVIM_TUI_ENABLE_CURSOR_SHAPE=0
 set guicursor=
+
+" 
+" Deoplete python3 stuff
+"
+" let g:python_host_prog = "/usr/bin/python2"
+let g:python3_host_prog = "/usr/bin/python3.7"
+let g:deoplete#enable_at_startup = 1
 
 "
 " FORMATTING
@@ -109,6 +119,7 @@ let g:go_auto_sameids = 1
 " YAML STUFF
 "
 
+au! BufNewFile,BufReadPost *.{yaml,yml} set filetype=yaml foldmethod=indent
 autocmd FileType yaml setlocal ts=2 sts=2 sw=2 expandtab
 
 " 
@@ -131,16 +142,25 @@ nnoremap tn :tabnew<CR>
 " Plugin keybindings
 nnoremap <f2> :NERDTreeToggle<cr>
 nnoremap \ :Ag<SPACE>
-:map rr :call VimuxRunCommand("r")<CR>
+
+" ===========================
+" Shortcuts for tmux / running a command in the other window
+
+" Run the last command
+:map rr :call VimuxRunCommand("r")<CR> 
+
+" Interrupt
 :map rc :VimuxInterruptRunner<CR>
 
+" ===========================
+"
 "
 " OTHER
 "
 let g:ctrlp_map = '<c-p>'
 let g:ctrlp_cmd = 'CtrlP'
 let g:signify_sign_delete_first_line = 'x'
-set clipboard=unnamed
+let g:loaded_clipboard_provider = 0
 
 " If i'm within TMUX or w/e
 syntax on

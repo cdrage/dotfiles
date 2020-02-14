@@ -25,3 +25,45 @@ export NVM_DIR="$HOME/.nvm"
 
 autoload -U +X bashcompinit && bashcompinit
 
+
+complete -o nospace -C /home/wikus/syncthing/files/dev/go/src/github.com/openshift/odo/odo odo
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -27,7 +27,7 @@ export HISTIGNORE="ls:cd:cd -:pwd:exit:date:* --help"
 [[ $TMUX = "" ]] && export TERM="xterm-256color"
 
 # Seafile
-export SPATH=$HOME/seafile/files
+export SPATH=$HOME/syncthing/files
 
 # Go
 export GOPATH=$SPATH/dev/go
@@ -113,6 +113,10 @@ alias rsync-copy="rsync -avz --progress"
 #############
 # FUNCTIONS #
 #############
+
+shout() {
+  echo -e "\n!!!!!!!!!!!!!!!!!!!!\n${1}\n!!!!!!!!!!!!!!!!!!!!\n"
+}
 
 pass-gen() {
   if [ -z "$1" ]
@@ -344,16 +348,37 @@ git-lazy() {
     return 1
   fi
   git add .
-  git commit -m $1
+  git commit -m $1 -s
   git-push
 }
 
 # Same thing as above, but create a PR for it too
 git-lazy-pr() {
   git add .
-  git commit
+  git-commit-template
   git-push
   git-pr $1
+}
+
+# Adds whatever template is used to your commit message...
+# obviously if there is a template being used, we should sign it..
+# if not, whatever!
+git-commit-template() {
+  FILE=.github/PULL_REQUEST_TEMPLATE.md
+  if [[ -f "$FILE" ]]; then
+    CONTENT=`echo "ADD TITLE HERE\n" && cat .github/PULL_REQUEST_TEMPLATE.md`
+
+    # Add the content..
+    git commit -m $CONTENT
+    
+    # Then amend it..
+    git commit --amend -s
+
+  else
+
+    # Else we just do what we normally do! Who cares about the template! But we'll still sign it because why not.
+    git commit -s
+  fi
 }
 
 # Push your branch!!
@@ -605,11 +630,12 @@ peerflix() {
 }
 
 yubikey() {
+  del_stopped ykpersonalize
   docker run --rm -it \
-    --device /dev/bus/usb \
+    -v /etc/localtime:/etc/localtime:ro \
     --device /dev/usb \
     --name ykpersonalize \
-    cdrage/ykpersonalize bash
+    jess/ykpersonalize bash
 }
 
 # Communication gateways / containers
@@ -882,7 +908,7 @@ install_minishift() {
 }
 
 install_minikube() {
-  RELEASE="0.25.0"
+  RELEASE="1.4.0"
   curl -Lo minikube https://storage.googleapis.com/minikube/releases/v$RELEASE/minikube-linux-amd64
   chmod +x minikube
   sudo mv minikube /usr/local/bin/
@@ -892,8 +918,8 @@ install_minikube() {
 }
 
 install_helm() {
-  RELEASE="2.9.1"
-  curl https://storage.googleapis.com/kubernetes-helm/helm-v$RELEASE-linux-amd64.tar.gz -o helm.tar.gz
+  RELEASE="3.0.0"
+  curl https://get.helm.sh/helm-v$RELEASE-linux-amd64.tar.gz -o helm.tar.gz
   tar -xvf helm.tar.gz 
   sudo mv linux-amd64/helm /usr/local/bin/helm
   rm -rf helm* linux-amd64
@@ -963,18 +989,16 @@ install_copy_private() {
   cp $SPATH/dev/linux/dotfiles/.extra .
 }
 
-install_seafile() {
-  mkdir -p ~/seafile/files
-	docker run \
-	-d \
-	--name seafile-client \
-	-v ~/seafile:/data \
-	--restart=always \
-	cdrage/seafile-client
-	echo ""
-	echo "Please add your first sync folder via:"
-	echo "docker exec -it seafile-client bash"
-  echo "/usr/bin/seaf-cli sync -l YOUR_LIBRARY_ID -s YOUR_SEAFILE_SERVER -d /data/files -u YOUR_EMAIL -p YOUR_PASSWORD"
+install_syncthing() {
+  docker run -p 8384:8384 -p 22000:22000 \                                                                                 
+    -e PUID=1000 -e PGID=1000 \
+    -v ~/syncthing:/var/syncthing \
+    --name syncthing \
+    --restart=always \
+    -d \
+    syncthing/syncthing:latest
+
+  echo "Now check localhost:8384 and add all your nodes!"
 }
 
 install_golang() {
@@ -1017,9 +1041,9 @@ install_usage() {
   echo "  docker"
   echo "  tmux"
   echo "  neovim"
-  echo "  seafile (this will take a LONG time)"
+  echo "  syncthing (this will take a LONG time)"
   echo ""
-  echo "When seafile is completed:"
+  echo "When syncthing is completed:"
   echo "  copy_private"
   echo "  go"
   echo ""
@@ -1087,8 +1111,8 @@ install() {
     install_keys
   elif [[ $cmd == "tmux" ]]; then
     install_tmux
-  elif [[ $cmd == "seafile" ]]; then
-    install_seafile
+  elif [[ $cmd == "syncthing" ]]; then
+    install_syncthing
   elif [[ $cmd == "minishift" ]]; then
     install_minishift
   elif [[ $cmd == "go" ]]; then
@@ -1096,135 +1120,6 @@ install() {
   else
     install_usage
   fi
-}
-
-##########
-# DEV / CLUSTER ENVIRONMENTS
-##########
-
-FEDORA_VM=fedora
-FEDORA_USER=root
-WINDOWS_VM=Windows
-WINDOWS_USER=admin
-RHEL_VM=rhel
-RHEL_USER=rhel
-
-
-vm_usage() {
-  echo "VM environments"
-  echo ""
-  echo "Usage:"
-  echo " vm {windows|fedora|rhel} {up|down}"
-  echo " vm ips"
-  echo ""
-}
-
-vm_ips() {
-
-  for VM in `sudo virsh list --name` 
-  do
-    if [[ ! -z "$VM" ]]
-    then
-      VM_IP=$(for mac in `sudo virsh domiflist $VM |grep -o -E "([0-9a-f]{2}:){5}([0-9a-f]{2})"` ; do sudo arp -e |grep $mac  |grep -o -P "^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}" ; done)
-      echo $VM: $VM_IP
-    fi
-  done
-}
-
-vm_windows() {
-  local cmd=$1
-
-  if [[ $cmd == "up" ]]; then
-    kvm_ssh $WINDOWS_VM $WINDOWS_USER $WINDOWS_PASSWORD
-  elif [[ $cmd == "down" ]]; then
-    sudo virsh shutdown $WINDOWS_VM
-  fi
-}
-
-vm_fedora() {
-  local cmd=$1
-
-  if [[ $cmd == "up" ]]; then
-    kvm_ssh $FEDORA_VM $FEDORA_USER
-  elif [[ $cmd == "down" ]]; then
-    sudo virsh shutdown $FEDORA_VM
-  fi
-}
-
-vm_rhel() {
-  local cmd=$1
-
-  if [[ $cmd == "up" ]]; then
-    kvm_ssh $RHEL_VM $RHEL_USER
-  elif [[ $cmd == "down" ]]; then
-    sudo virsh shutdown $RHEL_VM
-  fi
-}
-
-vm() {
-  local cmd=$1
-
-  if [[ $cmd == "fedora" ]]; then
-    vm_fedora ${@:2}
-  elif [[ $cmd == "rhel" ]]; then
-    vm_rhel ${@:2}
-  elif [[ $cmd == "windows" ]]; then
-    vm_windows ${@:2}
-  else
-    vm_usage 
-  fi
-}
-
-# SSH's into a kvm vm
-kvm_ssh() {
-
-  # Default values
-  VM=$1
-  VM_USER=$2
-  if [ -z "${VM_USER}" ]; then
-    VM_USER="root"
-  fi
-
-  # Who cares if it's already up
-  sudo virsh start $VM &>/dev/null
-
-  # Grab the IP address
-  while [ true ]; do
-    echo "$VM: Gathering IP..."
-    VM_IP=$(for mac in `sudo virsh domiflist $VM |grep -o -E "([0-9a-f]{2}:){5}([0-9a-f]{2})"` ; do sudo arp -e |grep $mac  |grep -o -P "^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}" ; done)
-    if [ ! -z "${VM_IP}" ]; then
-      echo "$VM: $VM_IP"
-      break
-    fi
-    sleep 1
-  done
-
-  # Wait until the SSH port is up
-  until nc -z $VM_IP 22 &>/dev/null;
-  do
-      echo "$VM: Waiting for SSH (22)..."
-      sleep 1
-  done
-
-  # SSH into it
-  if [ -z "$3" ]
-  then
-    ssh $VM_USER@$VM_IP
-  else
-    sshpass -p$3 ssh $VM_USER@$VM_IP
-  fi
-}
-
-wait_for_port() {
-  echo "$1:$2: Waiting for port $2"
-
-  # Wait until the SSH port is up
-  until nc -w 5 -z $1 $2 &>/dev/null;
-  do
-      sleep 1
-  done
-
-  echo "$1:$2: ONLINE"
 }
 
 
