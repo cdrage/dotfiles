@@ -1,12 +1,26 @@
 [global_config]
-  borderless = True
   dbus = False
   focus = mouse
   handle_size = 0
-  suppress_multiple_term_dialog = True
+  borderless = True
   title_transmit_bg_color = "#d30102"
+  suppress_multiple_term_dialog = True
 [keybindings]
-  layout_launcher = 
+  layout_launcher = ""
+[profiles]
+  [[default]]
+    allow_bold = False
+    background_color = "#3f3f3f"
+    cursor_color = "#dcdcdc"
+    font = Noto Mono 9
+    foreground_color = "#dcdcdc"
+    show_titlebar = False
+    scrollbar_position = hidden
+    scrollback_infinite = True
+    palette = "#3f3f3f:#cc9393:#7f9f7f:#e3ceab:#dfaf8f:#cc9393:#8cd0d3:#dcdccc:#797979:#cc9393:#7f9f7f:#e3ceab:#dfaf8f:#cc9393:#8cd0d3:#dcdccc"
+    use_custom_command = True
+    custom_command = /usr/bin/zsh
+    use_system_font = False
 [layouts]
   [[default]]
     [[[child1]]]
@@ -17,15 +31,3 @@
       parent = ""
       type = Window
 [plugins]
-[profiles]
-  [[default]]
-    allow_bold = False
-    background_color = "#3f3f3f"
-    cursor_color = "#dcdcdc"
-    font = Noto Mono 9
-    foreground_color = "#dcdcdc"
-    palette = "#3f3f3f:#cc9393:#7f9f7f:#e3ceab:#dfaf8f:#cc9393:#8cd0d3:#dcdccc:#797979:#cc9393:#7f9f7f:#e3ceab:#dfaf8f:#cc9393:#8cd0d3:#dcdccc"
-    scrollback_infinite = True
-    scrollbar_position = hidden
-    show_titlebar = False
-    use_system_font = False

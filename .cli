@@ -833,6 +833,7 @@ backup() {
 
 install_essential() {
   sudo apt-get install \
+    neovim \
     vim \
     curl \
     zsh \
@@ -840,6 +841,8 @@ install_essential() {
     tmux \
     terminator \
     python-pip \
+    python3-pip \
+    silversearcher-ag
     -y
 }
 
@@ -875,7 +878,7 @@ install_docker_machine() {
 }
 
 install_docker_compose() {
-  RELEASE=1.6.2
+  RELEASE=1.25.4
   echo ""
   echo $RELEASE
   echo ""
@@ -918,7 +921,7 @@ install_minikube() {
 }
 
 install_helm() {
-  RELEASE="3.0.0"
+  RELEASE="3.1.0"
   curl https://get.helm.sh/helm-v$RELEASE-linux-amd64.tar.gz -o helm.tar.gz
   tar -xvf helm.tar.gz 
   sudo mv linux-amd64/helm /usr/local/bin/helm
@@ -927,7 +930,7 @@ install_helm() {
 
 
 install_kubectl() {
-  RELEASE=1.13.2
+  RELEASE=1.17.3
   echo ""
   echo $RELEASE
   echo ""
@@ -979,21 +982,21 @@ install_neovim() {
     https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 	cp -r dotfiles/.config/nvim/ ~/.config/nvim
   sudo pip install neovim
+  sudo apt-get install neovim -y
 }
 
 install_copy_private() {
   if ! ask "This will override any SSH / PGP keys, continue?"; then return 0; fi
-  cp -r $SPATH/etc/keys/ssh/ ~/.ssh/
+  cp -r $SPATH/etc/keys/ssh/* ~/.ssh/
+  chmod 400 ~/.ssh/id_rsa ~/.ssh/id_rsa.pub
+  ssh-add
 
   echo "going to also copy special .extra file"
   cp $SPATH/dev/linux/dotfiles/.extra .
 }
 
 install_syncthing() {
-  docker run -p 8384:8384 -p 22000:22000 \                                                                                 
-    -e PUID=1000 -e PGID=1000 \
-    -v ~/syncthing:/var/syncthing \
-    --name syncthing \
+  docker run -p 8384:8384 -p 22000:22000 -e PUID=1000 -e PGID=1000 -v ~/syncthing:/var/syncthing --name syncthing \
     --restart=always \
     -d \
     syncthing/syncthing:latest
