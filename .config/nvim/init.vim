@@ -5,6 +5,7 @@ syntax off
 
 " Install those plugins
 call plug#begin('~/.vim/plugged')
+  Plug 'pearofducks/ansible-vim'
   Plug 'scrooloose/nerdtree'
   Plug 'benmills/vimux'
   Plug 'kien/ctrlp.vim'
