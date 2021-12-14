@@ -115,6 +115,12 @@ let g:go_highlight_types = 1
 
 " Highlight same names
 let g:go_auto_sameids = 0
+
+" 
+" HTML STUFF
+"
+au BufRead,BufNewFile *.template set filetype=html
+
 " 
 " YAML STUFF
 "

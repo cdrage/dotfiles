@@ -235,8 +235,8 @@ gogo() {
     local devpath=`find $SPATH/dev -maxdepth 3 -type d -path "*$1" | head -n1`
     local gopath=`find $GOPATH/src -maxdepth 5 -type d -path "*$1" | head -n1`
   else
-    local devpath=`find $SPATH/dev -maxdepth 1 -type d -iname "$1" | head -n1`
-    local gopath=`find $GOPATH/src -maxdepth 3 -type d -iname "$1" | head -n1`
+    local devpath=`find $SPATH/dev -maxdepth 3 -type d -iname "$1" | head -n1`
+    local gopath=`find $GOPATH/src -maxdepth 5 -type d -iname "$1" | head -n1`
   fi
 
   if [[ ! "$devpath" == "" ]]; then
