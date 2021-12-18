@@ -16,7 +16,8 @@ movesinks() {
 }
 
 
-# Change audio to dock
+# Change audio to dock analog stereo
+pacmd set-card-profile 0 output:analog-stereo
 sink=`pactl list short sinks | grep Thunderbolt | awk '{print $1}'`
 movesinks $sink
 

@@ -26,10 +26,10 @@ export HISTIGNORE="ls:cd:cd -:pwd:exit:date:* --help"
 # Tmux
 [[ $TMUX = "" ]] && export TERM="xterm-256color"
 
-# Seafile
+# Seafile location
 export SPATH=$HOME/syncthing/files
 
-# Go
+# Go location
 export GOPATH=$SPATH/dev/go
 export GOBIN=$GOPATH/bin
 export PATH=/usr/local/bin:/usr/local/go/bin:$PATH:$GOPATH/bin:/sbin
@@ -107,7 +107,7 @@ alias ips="sudo ifconfig -a | grep -o 'inet6\? \(addr:\)\?\s\?\(\(\([0-9]\+\.\)\
 alias hosts='sudo vim /etc/hosts'
 alias untar='tar xvf'
 alias battery='upower -i /org/freedesktop/UPower/devices/battery_BAT0'
-alias dl-a='youtube-dl -x -f bestaudio --prefer-free-formats -i --output "%(title)s.%(ext)s"'
+alias download-audio='youtube-dl -x -f bestaudio --prefer-free-formats -i --output "%(title)s.%(ext)s"'
 alias rsync-copy="rsync -avz --progress"
 
 #############
@@ -118,7 +118,7 @@ shout() {
   echo -e "\n!!!!!!!!!!!!!!!!!!!!\n${1}\n!!!!!!!!!!!!!!!!!!!!\n"
 }
 
-pass-gen() {
+pass-gen-http() {
   if [ -z "$1" ]
   then
     echo "plz supply username"
@@ -146,6 +146,7 @@ sed-replace() {
 }
 
 
+# Downloads an entire youtube playlist, may have to use ytd-dl or whatever that is.
 youtube-dl-playlist() {
 OUT_FORMAT='%(uploader)s/%(title)s.%(ext)s'
 
@@ -220,6 +221,7 @@ twitch() {
   streamlink --twitch-disable-ads twitch.tv/$1 $quality
 }
 
+# Dig all?
 digga() {
   dig +nocmd "$1" any +multiline +noall +answer
 }
@@ -249,6 +251,7 @@ gogo() {
   fi
 }
 
+# Only works on linux?
 spoof_mac() {
   # For all those pesky airports with 45 minutes only complimentary access
   # turns off network-manager, spoofs the address and comes back up
@@ -277,6 +280,7 @@ restore_mac() {
   echo "shits restored"
 }
 
+# For my site
 blog-init-post() {
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]
 then
@@ -300,6 +304,7 @@ EOL
 vim +$ +startinsert $DATE-$1.markdown
 }
 
+# Shows worldtime
 worldtime() {
   let ctr=1
   array=("UTC" "US/Pacific" "America/Toronto" "Europe/Amsterdam" "Asia/Kolkata")
@@ -311,6 +316,7 @@ worldtime() {
   done
 }
 
+# Check if domain works
 check-domain() {
   whois $1 | egrep -q '^No match|^NOT FOUND|^Not fo|AVAILABLE|^No Data Fou|has not been regi|No entri' 
   if [ $? -eq 0 ]; then 
@@ -322,7 +328,6 @@ check-domain() {
 ##################
 # FUNCTIONS: GIT #
 ##################
-
 
 # Clean all files
 git-clean() {
@@ -662,37 +667,6 @@ irc_twitch(){
     -r "/server add twitch irc.twitch.tv -password=$TWITCHOAUTH;/set irc.server.twitch.nicks '$TWITCHUSER';/connect twitch"
 }
 
-#######################
-# SETUP STUFF FOR VPS'#
-#######################
-
-setup_kedge_slack() {
-  del_stopped kedge_slack
-  docker run -it \
-    -v /etc/localtime:/etc/localtime:ro \
-    --name kedge_slack \
-    cdrage/weechat \
-    -r "/server add slack $KEDGE_SLACK_HOST/6667 -autoconnect -ssl -ssl_dhkey_size=512 -password=$KEDGE_SLACK_PASSWORD -username=$KEDGE_SLACK_USERNAME -nicks=$KEDGE_SLACK_USERNAME;/connect slack;/join $KEDGE_SLACK_CHANNELS;/script install atcomplete.pl;/set weechat.completion.nick_completer '';/set weechat.bar.nicklist.hidden false;/set weechat.bar.nicklist.position right"
-}
-
-setup_k8s_slack() {
-  del_stopped k8s_slack
-  docker run -it \
-    -v /etc/localtime:/etc/localtime:ro \
-    --name k8s_slack \
-    cdrage/weechat \
-    -r "/server add slack $K8S_SLACK_HOST/6667 -autoconnect -ssl -ssl_dhkey_size=512 -password=$K8S_SLACK_PASSWORD -username=$K8S_SLACK_USERNAME -nicks=$K8S_SLACK_USERNAME;/connect slack;/join $K8S_SLACK_CHANNELS;/script install atcomplete.pl;/set weechat.completion.nick_completer '';/set weechat.bar.nicklist.hidden false;/set weechat.bar.nicklist.position right"
-}
-
-setup_irc() {
-  del_stopped irc
-  docker run -it \
-    -v /etc/localtime:/etc/localtime:ro \
-    --name irc \
-    cdrage/weechat \
-    -r "/server add $IRC_SERVER $IRC_SERVER_HOST -autoconnect -nicks=$IRC_NICK;/set irc.server.$IRC_SERVER.command \"/msg nickserv identify $IRC_PASSWORD\";/set irc.server.$IRC_SERVER.autojoin \"$IRC_CHANNELS\";/connect $IRC_SERVER;/set weechat.bar.nicklist.position right;/set weechat.bar.nicklist.hidden false;"
-}
-
 ######################
 # SYSTEMD GENERATION #
 ######################
@@ -827,9 +801,9 @@ backup() {
   fi
 }
 
-###########
-# INSTALL #
-###########
+####################
+# INSTALL (DEBIAN) #
+####################
 
 install_essential() {
   sudo apt-get install \
