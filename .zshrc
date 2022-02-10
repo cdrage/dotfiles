@@ -20,53 +20,7 @@ export PATH="$PATH:$HOME/.rvm/bin" # Add RVM to PATH for scripting
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"  # This loads nvm
 
-# added by travis gem
-[ -f /home/wikus/.travis/travis.sh ] && source /home/wikus/.travis/travis.sh
-
 autoload -U +X bashcompinit && bashcompinit
-
-
-complete -o nospace -C /home/wikus/syncthing/files/dev/go/src/github.com/openshift/odo/odo odo
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 # Generated for envman. Do not edit.
 [ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
