@@ -6,7 +6,7 @@ syntax off
 " Install those plugins
 call plug#begin('~/.vim/plugged')
   Plug 'pearofducks/ansible-vim'
-  Plug 'scrooloose/nerdtree'
+  Plug 'preservim/nerdtree'
   Plug 'benmills/vimux'
   Plug 'kien/ctrlp.vim'
   Plug 'andviro/flake8-vim'
@@ -49,6 +49,10 @@ call plug#begin('~/.vim/plugged')
 
   " Terraform
   Plug 'hashivim/vim-terraform'
+
+  " Typescript / javascript
+  Plug 'leafgarland/typescript-vim'
+
 
 call plug#end()
 
@@ -181,6 +185,10 @@ endif
 
 " The-NERD-Tree 
 let NERDTreeIgnore=['\.pyc$', '\~$']
+" Start NERDTree and put the cursor back in the other window.
+" autocmd VimEnter * NERDTree | wincmd p
+" Exit Vim if NERDTree is the only window remaining in the only tab.
+" autocmd BufEnter * if tabpagenr('$') == 1 && winnr('$') == 1 && exists('b:NERDTree') && b:NERDTree.isTabTree() | quit | endif
 
 " Notes directory
 :let g:notes_directories = ['~/dropbox/txt/']

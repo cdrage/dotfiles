@@ -6,6 +6,7 @@
   title_transmit_bg_color = "#d30102"
   suppress_multiple_term_dialog = True
 [keybindings]
+  paste = <Primary>v
   layout_launcher = ""
 [profiles]
   [[default]]

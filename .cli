@@ -90,6 +90,7 @@ colorflag="--color"
 alias l="ls -lF ${colorflag}"
 alias la="ls -laF ${colorflag}"
 alias lsd="ls -lF ${colorflag} | grep --color=never '^d'"
+alias lsc="ls -l ${colorflag} | awk   '{k=0;for(i=0;i<=8;i++)k+=((substr(\$1,i+2,1)~/[rwx]/)*2^(8-i));if(k)printf(\"%0o \",k);print}'"
 alias ls="command ls ${colorflag}"
 export LS_COLORS='no=00:fi=00:di=01;34:ln=01;36:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arj=01;31:*.taz=01;31:*.lzh=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.gz=01;31:*.bz2=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.jpg=01;35:*.jpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.avi=01;35:*.fli=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.ogg=01;35:*.mp3=01;35:*.wav=01;35:'
 
@@ -329,6 +330,12 @@ check-domain() {
 # FUNCTIONS: GIT #
 ##################
 
+# Delete all remote branches except for main
+git-delete-all-remote-branches-except-main() {
+  if ! ask "This will delete ALL branches except main, continue?"; then return 0; fi
+  git branch -r | grep origin/ | grep -v 'master$' | grep -v HEAD| cut -d/ -f2 | while read line; do git push origin :$line; done;
+}
+
 # Clean all files
 git-clean() {
   git reset --hard
@@ -401,7 +408,7 @@ git-push() {
   fi
 }
 
-# Create a new branch / checkout from master
+# Create a new branch / checkout from main
 git-checkout() {
   if [ -z "$1" ]
   then
@@ -411,8 +418,8 @@ git-checkout() {
 
   if [ -z "$2" ]
   then
-    echo "Checking out from master"
-    git checkout master
+    echo "Checking out from main"
+    git checkout main
     git checkout -b $1
   else
     echo "Checking out from $2"
@@ -465,7 +472,7 @@ git-combine-commit() {
   git reset --soft HEAD~$1 && git commit -m "$LAST_COMMIT_MSG"
 }
 
-# Sync to the upstream repo (sync masters)
+# Sync to the upstream repo (sync main)
 git-sync-upstream() {
   UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's,git@github.com:,,g' | sed -e 's/\.git//g'`
   echo "Upstream: " $UPSTREAM_REPO
@@ -479,10 +486,10 @@ git-sync-upstream() {
   BRANCH=`git symbolic-ref --short HEAD`
 
   # Sync
-  echo "\nSyncing master\n"
-  git checkout master
+  echo "\nSyncing main\n"
+  git checkout main 
   git fetch upstream
-  git merge upstream/master
+  git merge upstream/main
 
   echo "\nGoing back to original working branch\n"
   # Go back to the original branch
@@ -499,6 +506,13 @@ git-patch-commit() {
     return 1
   fi
   curl -L -s "${1}.patch"| git am
+}
+
+
+# Git pull from the current branch / get all changes for the branch and merge?
+git-pull() {
+  BRANCH=`git symbolic-ref --short HEAD`
+  git pull origin $BRANCH
 }
 
 
@@ -528,7 +542,7 @@ git-pull-pr() {
     'git remote add upstream git@github.com/username/repo.git'"
     return 1
   fi
-  git checkout master
+  git checkout main 
   git branch -D pr_$NUMBAH
   git fetch upstream pull/$NUMBAH/head:pr_$NUMBAH
   git checkout pr_$NUMBAH
@@ -541,7 +555,7 @@ git-pr() {
   then
     echo "Nothing specified regarding branch, will be pushing to MASTER branch on UPSTREAM repo"
     echo ""
-    UPSTREAM_BRANCH="master"
+    UPSTREAM_BRANCH="main"
   else
     UPSTREAM_BRANCH=$1
   fi
@@ -578,7 +592,7 @@ git-pr() {
 
 # Delete's all merged PR branches
 git-delete-merged() {
-  git branch -r --merged | grep -v master | sed 's/origin\//:/' | xargs -n 1 git push origin
+  git branch -r --merged | grep -v main | sed 's/origin\//:/' | xargs -n 1 git push origin
 }
 
 #####################
@@ -771,10 +785,6 @@ backup_config() {
   cp -r ~/.config/nvim $SPATH/dev/linux/dotfiles/.config/
 }
 
-backup_scripts() {
-  cp -r ~/.scripts $SPATH/dev/linux/dotfiles/.scripts
-}
-
 backup_usage() {
   echo "Backup"
   echo ""
@@ -790,12 +800,9 @@ backup() {
     backup_dotfiles
   elif [[ $cmd == "config" ]]; then
     backup_config
-  elif [[ $cmd == "scripts" ]]; then
-    backup_scripts
   elif [[ $cmd == "all" ]]; then
     backup_dotfiles
     backup_config
-    backup_scripts
   else
     backup_usage 
   fi
@@ -862,14 +869,14 @@ install_docker_compose() {
 }
 
 install_oc() {
-  RELEASE="https://github.com/openshift/origin/releases/download/v3.11.0/openshift-origin-client-tools-v3.11.0-0cbc58b-linux-64bit.tar.gz"
+  RELEASE="https://github.com/openshift/okd/releases/download/4.9.0-0.okd-2022-01-29-035536/openshift-client-linux-4.9.0-0.okd-2022-01-29-035536.tar.gz"
   echo ""
   echo $RELEASE
   echo ""
   wget $RELEASE -O openshift.tar.gz
-  tar -xvf openshift.tar.gz --strip-components=1
+  tar -xvf openshift.tar.gz
   sudo mv oc /usr/local/bin/oc
-  rm openshift.tar.gz README.md LICENSE
+  rm openshift.tar.gz README.md kubectl
 }
 
 install_minishift() {
@@ -895,7 +902,7 @@ install_minikube() {
 }
 
 install_helm() {
-  RELEASE="3.1.0"
+  RELEASE="3.7.2"
   curl https://get.helm.sh/helm-v$RELEASE-linux-amd64.tar.gz -o helm.tar.gz
   tar -xvf helm.tar.gz 
   sudo mv linux-amd64/helm /usr/local/bin/helm
@@ -904,13 +911,23 @@ install_helm() {
 
 
 install_kubectl() {
-  RELEASE=1.17.3
+  RELEASE=1.23.0
   echo ""
   echo $RELEASE
   echo ""
   wget https://storage.googleapis.com/kubernetes-release/release/v$RELEASE/bin/linux/amd64/kubectl
   sudo mv kubectl /usr/local/bin/kubectl
   sudo chmod +x /usr/local/bin/kubectl
+}
+
+install_kompose() {
+  RELEASE=1.26.1
+  echo ""
+  echo $RELEASE
+  echo ""
+  wget https://github.com/kubernetes/kompose/releases/download/v1.26.1/kompose-linux-amd64
+  sudo mv kompose-linux-amd64 /usr/local/bin/kompose
+  sudo chmod +x /usr/local/bin/kompose
 }
 
 install_terminator() {
@@ -953,7 +970,7 @@ install_gnome_shortcuts() {
 
 install_neovim() {
   curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
-    https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+    https://raw.githubusercontent.com/junegunn/vim-plug/main/plug.vim
 	cp -r dotfiles/.config/nvim/ ~/.config/nvim
   sudo pip install neovim
   sudo apt-get install neovim -y
@@ -979,7 +996,7 @@ install_syncthing() {
 }
 
 install_golang() {
-  export GO_VERSION=1.13
+  export GO_VERSION=1.17.6
   export GO_SRC=/usr/local/go
 
   # purge old src
@@ -1050,7 +1067,7 @@ install_copy() {
 
 install_zsh() {
   sudo apt-get install curl zsh -y
-  sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
+  sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/main/tools/install.sh)"
 }
 
 install() {
