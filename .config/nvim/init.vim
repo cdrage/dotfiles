@@ -5,6 +5,8 @@ syntax off
 
 " Install those plugins
 call plug#begin('~/.vim/plugged')
+
+  " Random
   Plug 'pearofducks/ansible-vim'
   Plug 'preservim/nerdtree'
   Plug 'benmills/vimux'
@@ -12,6 +14,7 @@ call plug#begin('~/.vim/plugged')
   Plug 'andviro/flake8-vim'
   Plug 'rking/ag.vim'
   Plug 'SirVer/ultisnips'
+  Plug 'honza/vim-snippets'
   Plug 'ervandew/supertab'
   Plug 'godlygeek/tabular'
   Plug 'plasticboy/vim-markdown'
@@ -22,11 +25,6 @@ call plug#begin('~/.vim/plugged')
   Plug 'tpope/vim-rhubarb'
   Plug 'tpope/vim-fugitive'
 
-  " Autocompletion
-  Plug 'Shougo/deoplete.nvim', { 'do': ':UpdateRemotePlugins' }
-  Plug 'roxma/nvim-yarp'
-  Plug 'roxma/vim-hug-neovim-rpc'
-
   " Ruby
   Plug 'vim-ruby/vim-ruby'
 
@@ -35,14 +33,12 @@ call plug#begin('~/.vim/plugged')
 
   " Go
   Plug 'fatih/vim-go', { 'do': ':GoInstallBinaries' }
-  Plug 'deoplete-plugins/deoplete-go', { 'do': 'make'}
-
-  " Snippets
-	Plug 'Shougo/neosnippet.vim'
-  Plug 'Shougo/neosnippet-snippets'
 
   " Linting
   Plug 'w0rp/ale'
+
+  " Github Copilot
+  Plug 'github/copilot.vim'
 
   " Rust
   Plug 'rust-lang/rust.vim'
@@ -67,12 +63,14 @@ syntax on
 let $NVIM_TUI_ENABLE_CURSOR_SHAPE=0
 set guicursor=
 
+" Supertab stuff
+let g:SuperTabDefaultCompletionType = "context"
+
 " 
 " Deoplete python3 stuff
 "
 " let g:python_host_prog = "/usr/bin/python2"
-let g:python3_host_prog = "/usr/bin/python3.7"
-let g:deoplete#enable_at_startup = 1
+let g:python3_host_prog = '/usr/bin/python3'
 
 "
 " FORMATTING
@@ -116,9 +114,19 @@ let g:go_highlight_methods = 1
 let g:go_highlight_operators = 1
 let g:go_highlight_structs = 1
 let g:go_highlight_types = 1
+let g:go_highlight_function_calls = 1
+
+" Auto formatting and importing
+let g:go_auto_type_info = 1
 
 " Highlight same names
 let g:go_auto_sameids = 0
+let g:go_def_mode='gopls'
+let g:go_info_mode='gopls'
+
+" disable scratch window
+set completeopt-=preview
+
 
 " 
 " HTML STUFF
@@ -135,6 +143,8 @@ autocmd FileType yaml setlocal ts=2 sts=2 sw=2 expandtab
 " 
 " KEYBINDINGS
 " 
+
+" Markdown stuff
 inoremap 3' ```
 inoremap kj <Esc>
 inoremap jj <Esc>:wq<CR>
@@ -153,7 +163,11 @@ nnoremap tn :tabnew<CR>
 nnoremap <f2> :NERDTreeToggle<cr>
 nnoremap \ :Ag<SPACE>
 
-" ===========================
+
+
+" 
+" TMUX
+"
 " Shortcuts for tmux / running a command in the other window
 
 " Run the last command
@@ -162,8 +176,7 @@ nnoremap \ :Ag<SPACE>
 " Interrupt
 :map rc :VimuxInterruptRunner<CR>
 
-" ===========================
-"
+
 "
 " OTHER
 "
@@ -200,7 +213,6 @@ syntax on
 " PyFlake shit
 let g:PyFlakeDisabledMessages = 'C901'
 let g:PyFlakeDisabledMessages = 'E501'
-ret g:PyFlakeDefaultComplexity=20
 
 " Ag
 let g:ag_working_path_mode="r"
@@ -221,15 +233,8 @@ if &term =~ "xterm" || &term =~ "screen"
   map <Esc>[24~ <F12>
 endif
 
-" Disable scratch window
-set completeopt-=preview
-
 inoremap <C-Space> <C-x><C-o>
 inoremap <C-@> <C-Space>
-
-" Enable autocompletion on startup
-" Use deoplete.
-let g:deoplete#enable_at_startup = 1
 
 " Copying
 noremap <Leader>y "*y
@@ -238,27 +243,28 @@ noremap <Leader>Y "+y
 noremap <Leader>P "+p
 set mouse=v
 
-" Snippets!
-" Plugin key-mappings.
-" Note: It must be "imap" and "smap".  It uses <Plug> mappings.
-imap <C-k>     <Plug>(neosnippet_expand_or_jump)
-smap <C-k>     <Plug>(neosnippet_expand_or_jump)
-xmap <C-k>     <Plug>(neosnippet_expand_target)
+" Trigger configuration. You need to change this to something other than <tab> if you use one of the following:
+" - https://github.com/Valloric/YouCompleteMe
+" - https://github.com/nvim-lua/completion-nvim
+let g:UltiSnipsSnippetsDir = "~/.config/nvim/mysnippets"
+let g:UltiSnipsSnippetDirectories=['~/.config/nvim/mysnippets']
+let g:UltiSnipsExpandTrigger='<c-j>'
+let g:UltiSnipsJumpForwardTrigger="<c-j>"
+let g:UltiSnipsJumpBackwardTrigger="<c-k>"
 
-" SuperTab like snippets behavior.
-" Note: It must be "imap" and "smap".  It uses <Plug> mappings.
-"imap <expr><TAB>
-" \ pumvisible() ? "\<C-n>" :
-" \ neosnippet#expandable_or_jumpable() ?
-" \    "\<Plug>(neosnippet_expand_or_jump)" : "\<TAB>"
-smap <expr><TAB> neosnippet#expandable_or_jumpable() ?
-\ "\<Plug>(neosnippet_expand_or_jump)" : "\<TAB>"
+" If you want :UltiSnipsEdit to split your window.
+let g:UltiSnipsEditSplit="vertical"
+
+" Make the scroll speed faster
+set cursorline!
+set lazyredraw
 
 " For conceal markers.
 if has('conceal')
   set conceallevel=2 concealcursor=niv
 endif
 
-let g:neosnippet#snippets_directory='~/.config/nvim/mysnippets'
-
+" Markdown
+let g:vim_markdown_conceal_code_blocks = 0
 let g:vim_markdown_conceal = 0
+

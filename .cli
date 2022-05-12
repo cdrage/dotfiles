@@ -27,15 +27,12 @@ export HISTIGNORE="ls:cd:cd -:pwd:exit:date:* --help"
 [[ $TMUX = "" ]] && export TERM="xterm-256color"
 
 # Seafile location
-export SPATH=$HOME/syncthing/files
+export SPATH=$HOME/syncthing
 
 # Go location
 export GOPATH=$SPATH/dev/go
-export GOBIN=$GOPATH/bin
-export PATH=/usr/local/bin:/usr/local/go/bin:$PATH:$GOPATH/bin:/sbin
-
-# Rust
-export PATH="$HOME/.cargo/bin:$PATH"
+export GOROOT="$(brew --prefix golang)/libexec"
+export PATH=$PATH:$GOPATH/bin
 
 ###############
 # COLOR STUFF #
@@ -71,6 +68,8 @@ underline() {
 ###########
 
 alias notes="vim $SPATH/txt/notes.md"
+alias devfiles="cd $SPATH/dev/k8s/devfiles"
+alias wiki="cd $SPATH/wiki"
 
 # Easier navigation
 alias ..="cd .."
@@ -140,9 +139,9 @@ pass-gen-http() {
 sed-replace() {
   if [ -z "$3" ]
   then
-    find . -type f -name "*.*" -not -path "*/.git/*" -not -path "*/vendor/*" -print0 | xargs -0 sed -i "s%$1%$2%g"
+    find . -type f -name "*.*" -not -path "*/.git/*" -not -path "*/vendor/*" -print0 | xargs -0 sed -i "" "s/$1/$2/g"
   else
-    find $3 -type f -name "*.*" -not -path "*/.git/*" -not -path "*/vendor/*" -print0 | xargs -0 sed -i "s%$1%$2%g"
+    find $3 -type f -name "*.*" -not -path "*/.git/*" -not -path "*/vendor/*" -print0 | xargs -0 sed -i "" "s/$1/$2/g"
   fi
 }
 
@@ -228,7 +227,10 @@ digga() {
 }
 
 xkcd() {
-  shuf -n5 /usr/share/dict/words | sed -e ':a;N;$!ba;s/\n/ /g;s/'\''//g;s/\b\(.\)/\u\1/g;s/ //g'
+  (sort -R /usr/share/dict/words                                   \
+ | head -n 4                                                     \
+ | awk '{ sub(".", substr(toupper($0),1,1)); printf "%s", $0 }'  \
+ ; echo)
 }
 
 
@@ -279,30 +281,6 @@ restore_mac() {
   sudo macchanger -p $1
   sudo service network-manager start
   echo "shits restored"
-}
-
-# For my site
-blog-init-post() {
-if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]
-then
-  echo "Usage: blog-init-post url-title 'title', 'topic'"
-  return 1
-fi
-
-DATE=`date "+%Y-%m-%d"`
-DATE2=`date "+%Y-%m-%d %H:%M"`
-echo $DATE
-cat >$DATE-$1.markdown <<EOL
----
-layout: post
-category: $3
-title: "$2"
-date: $DATE2
----
-
-
-EOL
-vim +$ +startinsert $DATE-$1.markdown
 }
 
 # Shows worldtime
@@ -595,6 +573,11 @@ git-delete-merged() {
   git branch -r --merged | grep -v main | sed 's/origin\//:/' | xargs -n 1 git push origin
 }
 
+# Show all branches last worked on
+git-last-worked() {
+  git branch --sort="-committerdate" --format="%(color:green)%(committerdate:relative)%(color:reset) %(refname:short)"
+}
+
 #####################
 # FUNCTIONS: DOCKER #
 #####################
@@ -643,11 +626,6 @@ creds(){
   docker run -it --rm --network=none -v $SPATH/enc/creds.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
 }
 
-peerflix() {
-  magnet=$1
-  docker run --rm -it -p 8888:8888 cdrage/peerflix $magnet
-}
-
 yubikey() {
   del_stopped ykpersonalize
   docker run --rm -it \
@@ -658,7 +636,6 @@ yubikey() {
 }
 
 # Communication gateways / containers
-
 mutt(){
   docker run -it --rm \
     -e MUTT_NAME=$MUTT_NAME \
@@ -681,195 +658,80 @@ irc_twitch(){
     -r "/server add twitch irc.twitch.tv -password=$TWITCHOAUTH;/set irc.server.twitch.nicks '$TWITCHUSER';/connect twitch"
 }
 
-######################
-# SYSTEMD GENERATION #
-######################
-
-sysd_coreos() {
-  sudo bash -c "cat >/etc/systemd/system/$1.service <<EOL
-[Unit]
-Description=$1
-#After=etcd.service
-After=docker.service
-
-[Service]
-TimeoutStartSec=0
-ExecStartPre=-/usr/bin/docker kill $1
-ExecStartPre=-/usr/bin/docker rm $1
-#ExecStartPre=-/usr/bin/docker pull $1
-ExecStart=/usr/bin/docker run --name $1 
-ExecStop=/usr/bin/docker stop $1
-
-[Install]
-WantedBy=multi-user.target
-EOL"
-}
-
-sysd_bin() {
-  sudo bash -c "cat >/etc/systemd/system/$1.service <<EOL
-[Unit]
-Description=$1
-
-[Service]
-TimeoutStartSec=0
-Restart=on-failure
-RestartSec=1min
-KillMode=none
-ExecStart=/usr/bin/$1
-
-[Install]
-WantedBy=multi-user.target
-EOL"
-}
-
-sysd_usage() {
-  echo "Systemd generator"
-  echo ""
-  echo "Service gen:"
-  echo "  coreos [name]"
-  echo "  bin [name]"
-  return 1
-}
-
-sysd_service() {
-  if [ -z "$1" ]
-  then
-    echo "Must provide name of service to be generated"
-    return 1
-  fi
-  # Modify the service file
-  sudo vim /etc/systemd/system/$1.service
-
-  # Add it and deploy
-  if ask "Would you really like to add this service?"; then
-    sudo systemctl daemon-reload
-    sudo systemctl enable $1.service
-    sudo systemctl start $1.service
-  else
-    sudo rm /etc/systemd/system/$1.service
-  fi
-}
-
-sysd() {
-  local cmd=$1
-
-  if [[ $cmd == "coreos" ]]; then
-    sysd_coreos $2
-    sysd_service $2
-  elif [[ $cmd == "bin" ]]; then
-    sysd_bin $2
-    sysd_service $2
-  else
-    sysd_usage 
-  fi
-
-}
 
 ###################
 # DOTFILES BACKUP #
 ###################
 
-backup_dotfiles() {
+backup() {
+  shout "Backing up all dotfiles"
   for file in ~/.{cli,extra,tmux.conf,zshrc}; do
     cp $file $SPATH/dev/linux/dotfiles/
   done
-}
-
-backup_config() {
-  mkdir -p $SPATH/dev/linux/dotfiles/.config/terminator/
-
-  # Backup terminator / terminal
-  cp ~/.config/terminator/config $SPATH/dev/linux/dotfiles/.config/terminator/config
-
-  # Backup neovim
   cp -r ~/.config/nvim $SPATH/dev/linux/dotfiles/.config/
 }
 
-backup_usage() {
-  echo "Backup"
-  echo ""
-  echo "Usage:"
-  echo " backup {all|dotfiles|config"
-}
-
-
-backup() {
-  local cmd=$1
-
-  if [[ $cmd == "dotfiles" ]]; then
-    backup_dotfiles
-  elif [[ $cmd == "config" ]]; then
-    backup_config
-  elif [[ $cmd == "all" ]]; then
-    backup_dotfiles
-    backup_config
-  else
-    backup_usage 
-  fi
-}
 
 ####################
-# INSTALL (DEBIAN) #
+# INSTALL (MAC M1) #
 ####################
+
+install_copy() {
+  # Copy all of the files over first
+
+  cp -r .tmux.conf .cli .extra .zshrc ~/
+  shout "RESTART YOUR TERMINAL"
+
+  shout "Run install_sudo after"
+}
+install_sudo() {
+	echo "$USER ALL=(ALL) NOPASSWD:ALL" | sudo tee -a /etc/sudoers
+
+  shout "Run install_essential after"
+}
 
 install_essential() {
-  sudo apt-get install \
-    neovim \
-    vim \
-    curl \
-    zsh \
+	brew install neovim \
     git \
     tmux \
-    terminator \
-    python-pip \
-    python3-pip \
-    silversearcher-ag
-    -y
+    curl \
+    python3 \
+    node \
+    go \
+    kubectl \
+    libvirt \
+    podman \
+    nmap \
+    hub \
+    tig
+  
+  shout "Run install_config_files after"
 }
 
-install_sudo() {
+install_config_files() {
+  # Neovim
+  cp -r .config/nvim/ ~/.config/nvim
+  sh -c 'curl -fLo "${XDG_DATA_HOME:-$HOME/.local/share}"/nvim/site/autoload/plug.vim --create-dirs \
+         https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
+  pip3 install neovim
+  python3 -m pip install --user --upgrade pynvim
 
-  TARGET_USER=$1
+  # Oh my ZSH
+  sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+  cp -r .zshrc ~/
 
-  apt-get install sudo -y
+  # Install SSH keys
+  cp -r $SPATH/etc/keys/ssh/* ~/.ssh/
+  chmod 400 ~/.ssh/id_rsa ~/.ssh/id_rsa.pub
+  ssh-add
 
-	adduser "$TARGET_USER" sudo
-
-	gpasswd -a "$TARGET_USER" systemd-journal
-	gpasswd -a "$TARGET_USER" systemd-network
-
-	{ \
-		echo -e "${TARGET_USER} ALL=(ALL) NOPASSWD:ALL"; \
-	} >> /etc/sudoers
-
-  exit
-
+  # Tmux
+  git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 }
 
-
-install_docker_machine() {
-  RELEASE=0.5.0
-  echo ""
-  echo $RELEASE
-  echo ""
-  curl -L https://github.com/docker/machine/releases/download/v$RELEASE/docker-machine_linux-amd64.zip >machine.zip && \
-    unzip machine.zip && \
-    rm machine.zip && \
-    sudo mv docker-machine* /usr/local/bin
-}
-
-install_docker_compose() {
-  RELEASE=1.25.4
-  echo ""
-  echo $RELEASE
-  echo ""
-  curl -L https://github.com/docker/compose/releases/download/$RELEASE/docker-compose-Linux-x86_64 > docker-compose
-  sudo mv docker-compose /usr/local/bin/docker-compose
-  sudo chmod +x /usr/local/bin/docker-compose
-}
 
 install_oc() {
-  RELEASE="https://github.com/openshift/okd/releases/download/4.9.0-0.okd-2022-01-29-035536/openshift-client-linux-4.9.0-0.okd-2022-01-29-035536.tar.gz"
+  RELEASE="https://github.com/openshift/okd/releases/download/4.10.0-0.okd-2022-03-07-131213/openshift-client-mac-4.10.0-0.okd-2022-03-07-131213.tar.gz"
   echo ""
   echo $RELEASE
   echo ""
@@ -877,47 +739,7 @@ install_oc() {
   tar -xvf openshift.tar.gz
   sudo mv oc /usr/local/bin/oc
   rm openshift.tar.gz README.md kubectl
-}
-
-install_minishift() {
-  RELEASE="1.34.2"
-  wget https://github.com/minishift/minishift/releases/download/v$RELEASE/minishift-$RELEASE-linux-amd64.tgz -O minishift.tar.gz
-  tar -xvf minishift.tar.gz --strip-components=1
-  sudo mv minishift /usr/local/bin/minishift
-  rm README.adoc LICENSE minishift.tar.gz
-
-  # Install minishift kvm plugin
-  sudo curl -L https://github.com/dhiltgen/docker-machine-kvm/releases/download/v0.7.0/docker-machine-driver-kvm -o /usr/local/bin/docker-machine-driver-kvm
-  sudo chmod +x /usr/local/bin/docker-machine-driver-kvm
-}
-
-install_minikube() {
-  RELEASE="1.4.0"
-  curl -Lo minikube https://storage.googleapis.com/minikube/releases/v$RELEASE/minikube-linux-amd64
-  chmod +x minikube
-  sudo mv minikube /usr/local/bin/
-
-  # Install plugin
-  curl -LO https://storage.googleapis.com/minikube/releases/latest/docker-machine-driver-kvm2 && chmod +x docker-machine-driver-kvm2 && sudo mv docker-machine-driver-kvm2 /usr/local/bin/
-}
-
-install_helm() {
-  RELEASE="3.7.2"
-  curl https://get.helm.sh/helm-v$RELEASE-linux-amd64.tar.gz -o helm.tar.gz
-  tar -xvf helm.tar.gz 
-  sudo mv linux-amd64/helm /usr/local/bin/helm
-  rm -rf helm* linux-amd64
-}
-
-
-install_kubectl() {
-  RELEASE=1.23.0
-  echo ""
-  echo $RELEASE
-  echo ""
-  wget https://storage.googleapis.com/kubernetes-release/release/v$RELEASE/bin/linux/amd64/kubectl
-  sudo mv kubectl /usr/local/bin/kubectl
-  sudo chmod +x /usr/local/bin/kubectl
+  oc version
 }
 
 install_kompose() {
@@ -925,195 +747,8 @@ install_kompose() {
   echo ""
   echo $RELEASE
   echo ""
-  wget https://github.com/kubernetes/kompose/releases/download/v1.26.1/kompose-linux-amd64
-  sudo mv kompose-linux-amd64 /usr/local/bin/kompose
+  wget https://github.com/kubernetes/kompose/releases/download/v$RELEASE/kompose-darwin-arm64 -O kompose
+  sudo mv kompose /usr/local/bin/kompose
   sudo chmod +x /usr/local/bin/kompose
+  kompose version
 }
-
-install_terminator() {
-  mkdir -p ~/.config/terminator
-  cp dotfiles/.config/terminator/config ~/.config/terminator/config
-  shout "Close this terminal and re-open in 'terminator'"
-}
-
-install_tmux() {
-  git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
-  cp dotfiles/.tmux.conf ~/
-}
-
-install_docker() {
-  sudo apt-get update
-  sudo apt-get install \
-     apt-transport-https \
-     ca-certificates \
-     curl \
-     gnupg2 \
-     software-properties-common -y
-  curl -fsSL https://download.docker.com/linux/$(. /etc/os-release; echo "$ID")/gpg | sudo apt-key add -
-  sudo apt-key fingerprint 0EBFCD88
-  sudo add-apt-repository \
-   "deb [arch=amd64] https://download.docker.com/linux/$(. /etc/os-release; echo "$ID") \
-   $(lsb_release -cs) \
-   stable"
-  sudo apt-get update
-  sudo apt-get install docker-ce -y
-  sudo usermod -aG docker $USER
-
-  shout "Updating user permissions without having to re-log.."
-  sudo su - $USER
-}
-
-install_gnome_shortcuts() {
-  gsettings set org.gnome.desktop.wm.preferences resize-with-right-button true
-  gsettings set org.gnome.desktop.wm.preferences mouse-button-modifier '<Alt>'
-}
-
-install_neovim() {
-  curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
-    https://raw.githubusercontent.com/junegunn/vim-plug/main/plug.vim
-	cp -r dotfiles/.config/nvim/ ~/.config/nvim
-  sudo pip install neovim
-  sudo apt-get install neovim -y
-}
-
-install_copy_private() {
-  if ! ask "This will override any SSH / PGP keys, continue?"; then return 0; fi
-  cp -r $SPATH/etc/keys/ssh/* ~/.ssh/
-  chmod 400 ~/.ssh/id_rsa ~/.ssh/id_rsa.pub
-  ssh-add
-
-  echo "going to also copy special .extra file"
-  cp $SPATH/dev/linux/dotfiles/.extra .
-}
-
-install_syncthing() {
-  docker run -p 8384:8384 -p 22000:22000 -e PUID=1000 -e PGID=1000 -v ~/syncthing:/var/syncthing --name syncthing \
-    --restart=always \
-    -d \
-    syncthing/syncthing:latest
-
-  echo "Now check localhost:8384 and add all your nodes!"
-}
-
-install_golang() {
-  export GO_VERSION=1.17.6
-  export GO_SRC=/usr/local/go
-
-  # purge old src
-  # NOPE.jpeg
-  #if [[ -d "$GO_SRC" ]]; then
-  #  sudo rm -rf "$GO_SRC"
-  #  sudo rm -rf "$GOPATH"
-  #fi
-
-  # rm old go
-  sudo rm -rf /usr/local/go
-  sudo rm -f /usr/bin/go
-
-  echo -e "\n\tInstalling Go $GO_VERSION\n"
-  (curl -sSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | sudo tar -v -C /usr/local -xz)
-
-  # For sudo / root
-  sudo rm -f /usr/bin/go
-  sudo ln -s /usr/local/go/bin/go /usr/bin/go
-}
-
-install_usage() {
-  echo ""
-  echo "Install / Update:"
-  echo ""
-  echo "First, we need to install sudo:"
-  echo " su root"
-  echo " source dotfiles/.cli && install sudo USERNAME"
-  echo ""
-  echo "New machine (in order):"
-  echo "  copy"
-  echo "  gnome_shortcuts"
-  echo "  essential"
-  echo "  terminator"
-  echo "  zsh"
-  echo "  docker"
-  echo "  tmux"
-  echo "  neovim"
-  echo "  syncthing (this will take a LONG time)"
-  echo ""
-  echo "When syncthing is completed:"
-  echo "  copy_private"
-  echo "  go"
-  echo ""
-  echo "Extra Applications:"
-  echo "  libvirt"
-  echo "  docker-machine"
-  echo "  docker-compose"
-  echo "  docker-grub"
-  echo "  oc"
-  echo "  kubectl"
-  echo "  minishift"
-  echo "  minikube"
-  echo "  helm"
-}
-
-install_libvirt() {
-  sudo apt-get install qemu-kvm libvirt-clients libvirt-daemon-system -y
-  sudo adduser $USER libvirt
-  sudo adduser $USER libvirt-qemu
-  sudo virsh net-autostart default
-}
-
-install_copy() {
-	cp -r dotfiles/.* .	
-	rm -rf .git*
-}
-
-install_zsh() {
-  sudo apt-get install curl zsh -y
-  sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/main/tools/install.sh)"
-}
-
-install() {
-  local cmd=$1
-
-  if [[ $cmd == "docker" ]]; then
-    install_docker ${@:2}
-  elif [[ $cmd == "docker-machine" ]]; then
-    install_docker_machine
-  elif [[ $cmd == "docker-compose" ]]; then
-    install_docker_compose
-  elif [[ $cmd == "docker-grub" ]]; then
-    install_docker_grub
-  elif [[ $cmd == "sudo" ]]; then
-    install_sudo ${@:2}
-  elif [[ $cmd == "copy" ]]; then
-    install_copy
-  elif [[ $cmd == "oc" ]]; then
-    install_oc
-  elif [[ $cmd == "essential" ]]; then
-    install_essential
-  elif [[ $cmd == "zsh" ]]; then
-    install_zsh
-  elif [[ $cmd == "gnome_shortcuts" ]]; then
-    install_gnome_shortcuts
-  elif [[ $cmd == "kubectl" ]]; then
-    install_kubectl
-  elif [[ $cmd == "vim" ]]; then
-    install_vim
-  elif [[ $cmd == "neovim" ]]; then
-    install_neovim
-  elif [[ $cmd == "terminator" ]]; then
-    install_terminator
-  elif [[ $cmd == "keys" ]]; then
-    install_keys
-  elif [[ $cmd == "tmux" ]]; then
-    install_tmux
-  elif [[ $cmd == "syncthing" ]]; then
-    install_syncthing
-  elif [[ $cmd == "minishift" ]]; then
-    install_minishift
-  elif [[ $cmd == "go" ]]; then
-    install_golang
-  else
-    install_usage
-  fi
-}
-
-
