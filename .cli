@@ -83,6 +83,7 @@ alias -- -="cd -"
 alias g="git"
 alias d=gogo # d for dev :)
 alias k="kubectl"
+alias v="velero"
 
 # ls stuff
 colorflag="--color"
@@ -314,6 +315,10 @@ git-delete-all-remote-branches-except-main() {
   git branch -r | grep origin/ | grep -v 'master$' | grep -v HEAD| cut -d/ -f2 | while read line; do git push origin :$line; done;
 }
 
+git-sign() {
+  git commit --amend --no-edit -s
+}
+
 # Clean all files
 git-clean() {
   git reset --hard
@@ -452,6 +457,12 @@ git-combine-commit() {
 
 # Sync to the upstream repo (sync main)
 git-sync-upstream() {
+  if [ -z "$1" ]
+    MAIN=$1
+  then
+    MAIN="main"
+  fi
+
   UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's,git@github.com:,,g' | sed -e 's/\.git//g'`
   echo "Upstream: " $UPSTREAM_REPO
   if [ -z "$UPSTREAM_REPO" ]; then
@@ -465,9 +476,9 @@ git-sync-upstream() {
 
   # Sync
   echo "\nSyncing main\n"
-  git checkout main 
+  git checkout $MAIN
   git fetch upstream
-  git merge upstream/main
+  git merge upstream/${MAIN}
 
   echo "\nGoing back to original working branch\n"
   # Go back to the original branch
@@ -564,8 +575,12 @@ git-pr() {
   export PR="$(git --no-pager log -1 --pretty=%s%n%n%b)"
   echo ""
   italic $PR
+  # Echo $PR to tmp file
+  echo "$PR" > /tmp/pr.tmp
 
-  ask "Push PR?" && hub pull-request -b $UPSTREAM_REPO:$UPSTREAM_BRANCH -h $ORIGIN_REPO:$BRANCH -m $PR
+  export TITLE="$(git --no-pager log -1 --format=%s)"
+
+  gh pr create --title "$TITLE" --body-file /tmp/pr.tmp -H $GH_USER:$BRANCH
 }
 
 # Delete's all merged PR branches
@@ -619,11 +634,11 @@ del_stopped(){
 
 
 jrl(){
-  docker run -it --rm --network=none -v $SPATH/enc/txt.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
+  podman run -it --rm --network=none -v $SPATH/enc/txt.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
 }
 
 creds(){
-  docker run -it --rm --network=none -v $SPATH/enc/creds.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
+  podman run -it --rm --network=none -v $SPATH/enc/creds.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
 }
 
 yubikey() {
@@ -751,4 +766,12 @@ install_kompose() {
   sudo mv kompose /usr/local/bin/kompose
   sudo chmod +x /usr/local/bin/kompose
   kompose version
+}
+
+del_terminating_namespace() {
+  echo "run kubectl proxy before"
+  NAMESPACE=$1
+  kubectl get namespace $NAMESPACE -o json |jq '.spec = {"finalizers":[]}' >temp.json
+  curl -k -H "Content-Type: application/json" -X PUT --data-binary @temp.json 127.0.0.1:8001/api/v1/namespaces/$NAMESPACE/finalize
+  rm temp.json
 }

@@ -37,9 +37,6 @@ call plug#begin('~/.vim/plugged')
   " Linting
   Plug 'w0rp/ale'
 
-  " Github Copilot
-  Plug 'github/copilot.vim'
-
   " Rust
   Plug 'rust-lang/rust.vim'
 
@@ -62,15 +59,6 @@ syntax on
 
 let $NVIM_TUI_ENABLE_CURSOR_SHAPE=0
 set guicursor=
-
-" Supertab stuff
-let g:SuperTabDefaultCompletionType = "context"
-
-" 
-" Deoplete python3 stuff
-"
-" let g:python_host_prog = "/usr/bin/python2"
-let g:python3_host_prog = '/usr/bin/python3'
 
 "
 " FORMATTING
@@ -127,7 +115,6 @@ let g:go_info_mode='gopls'
 " disable scratch window
 set completeopt-=preview
 
-
 " 
 " HTML STUFF
 "
@@ -162,7 +149,6 @@ nnoremap tn :tabnew<CR>
 " Plugin keybindings
 nnoremap <f2> :NERDTreeToggle<cr>
 nnoremap \ :Ag<SPACE>
-
 
 
 " 
@@ -203,11 +189,7 @@ let NERDTreeIgnore=['\.pyc$', '\~$']
 " Exit Vim if NERDTree is the only window remaining in the only tab.
 " autocmd BufEnter * if tabpagenr('$') == 1 && winnr('$') == 1 && exists('b:NERDTree') && b:NERDTree.isTabTree() | quit | endif
 
-" Notes directory
-:let g:notes_directories = ['~/dropbox/txt/']
-:let g:notes_conceal_url = 0
-:let g:notes_list_bullets = ['*']
-:let g:notes_tagsindex = 0
+" ?
 syntax on
 
 " PyFlake shit
@@ -243,18 +225,6 @@ noremap <Leader>Y "+y
 noremap <Leader>P "+p
 set mouse=v
 
-" Trigger configuration. You need to change this to something other than <tab> if you use one of the following:
-" - https://github.com/Valloric/YouCompleteMe
-" - https://github.com/nvim-lua/completion-nvim
-let g:UltiSnipsSnippetsDir = "~/.config/nvim/mysnippets"
-let g:UltiSnipsSnippetDirectories=['~/.config/nvim/mysnippets']
-let g:UltiSnipsExpandTrigger='<c-j>'
-let g:UltiSnipsJumpForwardTrigger="<c-j>"
-let g:UltiSnipsJumpBackwardTrigger="<c-k>"
-
-" If you want :UltiSnipsEdit to split your window.
-let g:UltiSnipsEditSplit="vertical"
-
 " Make the scroll speed faster
 set cursorline!
 set lazyredraw
@@ -267,4 +237,3 @@ endif
 " Markdown
 let g:vim_markdown_conceal_code_blocks = 0
 let g:vim_markdown_conceal = 0
-

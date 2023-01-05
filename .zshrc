@@ -24,4 +24,6 @@ autoload -U +X bashcompinit && bashcompinit
 [ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 export PATH="/opt/homebrew/opt/go@1.16/bin:$PATH"
-export PATH="/opt/homebrew/opt/go@1.16/bin:$PATH"
+PATH="/opt/podman/bin:$PATH"
+
+source /Users/cdrage/.docker/init-zsh.sh || true # Added by Docker Desktop
