@@ -23,15 +23,12 @@ export HISTFILESIZE=$HISTSIZE
 export HISTCONTROL=ignoredups
 export HISTIGNORE="ls:cd:cd -:pwd:exit:date:* --help"
 
-# Tmux
-[[ $TMUX = "" ]] && export TERM="xterm-256color"
-
-# Seafile location
+# Syncthing location
 export SPATH=$HOME/syncthing
 
 # Go location
 export GOPATH=$SPATH/dev/go
-export GOROOT="$(brew --prefix golang)/libexec"
+
 export PATH=$PATH:$GOPATH/bin
 
 ###############
@@ -108,7 +105,7 @@ alias ips="sudo ifconfig -a | grep -o 'inet6\? \(addr:\)\?\s\?\(\(\([0-9]\+\.\)\
 alias hosts='sudo vim /etc/hosts'
 alias untar='tar xvf'
 alias battery='upower -i /org/freedesktop/UPower/devices/battery_BAT0'
-alias download-audio='youtube-dl -x -f bestaudio --prefer-free-formats -i --output "%(title)s.%(ext)s"'
+alias download-audio='yt-dlp -x -f bestaudio --prefer-free-formats -i --output "%(title)s.%(ext)s"'
 alias rsync-copy="rsync -avz --progress"
 
 #############
@@ -151,7 +148,7 @@ sed-replace() {
 youtube-dl-playlist() {
 OUT_FORMAT='%(uploader)s/%(title)s.%(ext)s'
 
-youtube-dl \
+yt-dlp \
     --ignore-config                 \
     --ignore-errors                 \
     --no-continue                   \
@@ -255,35 +252,6 @@ gogo() {
   fi
 }
 
-# Only works on linux?
-spoof_mac() {
-  # For all those pesky airports with 45 minutes only complimentary access
-  # turns off network-manager, spoofs the address and comes back up
-  if [ -z "$1" ]
-  then
-    echo "plz supply your network interface"
-    return 1
-  fi
-  sudo service network-manager stop || true
-  sudo ifconfig $1 down || true
-  sudo macchanger -r $1
-  sudo service network-manager start || true
-  sudo ifconfig $1 up || true
-  echo "shits spoofed"
-}
-
-restore_mac() {
-  if [ -z "$1" ]
-  then
-    echo "plz supply your network interface"
-    return 1
-  fi
-  sudo service network-manager stop
-  sudo macchanger -p $1
-  sudo service network-manager start
-  echo "shits restored"
-}
-
 # Shows worldtime
 worldtime() {
   let ctr=1
@@ -316,7 +284,7 @@ git-delete-all-remote-branches-except-main() {
 }
 
 git-sign() {
-  git commit --amend --no-edit -s
+  git commit --no-verify --amend --no-edit -s
 }
 
 # Clean all files
@@ -364,15 +332,15 @@ git-commit-template() {
     CONTENT=`echo "ADD TITLE HERE\n" && cat .github/PULL_REQUEST_TEMPLATE.md`
 
     # Add the content..
-    git commit -m $CONTENT
+    git commit --no-verify -m $CONTENT
     
     # Then amend it..
-    git commit --amend -s
+    git commit --no-verify --amend -s
 
   else
 
     # Else we just do what we normally do! Who cares about the template! But we'll still sign it because why not.
-    git commit -s
+    git commit --no-verify -s
   fi
 }
 
@@ -415,7 +383,7 @@ git-checkout() {
 # Combine the current changes to the last commit
 git-update() {
   LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
-  git add . && git commit -m 'update' && git reset --soft HEAD~2 && git commit -m "$LAST_COMMIT_MSG"
+  git add . && git commit --no-verify -m 'update' && git reset --soft HEAD~2 && git commit --no-verify -m "$LAST_COMMIT_MSG"
 }
 
 # Set the proper upstream remote (add your own fork to origin)
@@ -452,15 +420,15 @@ git-combine-commit() {
   fi
   # Combine last N commits with last message
   LAST_COMMIT_MSG=`git show -s --format=%B -1 | cat`
-  git reset --soft HEAD~$1 && git commit -m "$LAST_COMMIT_MSG"
+  git reset --soft HEAD~$1 && git commit --no-verify -m "$LAST_COMMIT_MSG"
 }
 
 # Sync to the upstream repo (sync main)
 git-sync-upstream() {
-  if [ -z "$1" ]
-    MAIN=$1
+  MAIN="main"
+  if [[ ! -z "$1" ]]
   then
-    MAIN="main"
+    MAIN=$1
   fi
 
   UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's,git@github.com:,,g' | sed -e 's/\.git//g'`
@@ -475,7 +443,7 @@ git-sync-upstream() {
   BRANCH=`git symbolic-ref --short HEAD`
 
   # Sync
-  echo "\nSyncing main\n"
+  echo "\nSyncing $MAIN\n"
   git checkout $MAIN
   git fetch upstream
   git merge upstream/${MAIN}
@@ -485,6 +453,40 @@ git-sync-upstream() {
   git checkout $BRANCH
 
   echo "\nSync completed\n"
+}
+
+# Reset a file in the current commit
+git-revert-file() {
+  if [ "$#" -ne 1 ]; then
+    echo "Usage: git_revert_file <file_path>"
+    return 1
+  fi
+  
+  file_path=$1
+
+  # Check if the file exists in the current commit
+  if ! git ls-files --error-unmatch "$file_path" >/dev/null 2>&1; then
+    echo "File does not exist in the current commit."
+    return 1
+  fi
+
+  # Get the hash of the parent commit
+  parent_commit=$(git rev-parse HEAD^)
+
+  if [ $? -ne 0 ]; then
+    echo "Failed to find the parent commit."
+    return 1
+  fi
+
+  # Revert the changes to the file
+  git checkout "$parent_commit" -- "$file_path"
+
+  if [ $? -ne 0 ]; then
+    echo "Failed to revert the changes to the file."
+    return 1
+  fi
+
+  echo "Successfully reverted changes to $file_path in the current commit."
 }
 
 # Download a commit and patch it to your current branch
@@ -513,28 +515,7 @@ git-pull-pr() {
     echo "Supply the PR yo. ex. https://github.com/project/repo/pull/9 or just 9"
     return 1
   fi
-
-  if [[ $1 == *"https"* ]]
-  then
-    echo "URL supplied, converting to a numbah";
-    NUMBAH=`echo "$1" | grep -E -o "\/[0-9]+" | sed 's,/,,g'`
-  else
-    NUMBAH=$1
-  fi
-
-  # Check that there is a remote upstream set
-  UPSTREAM_REPO=`git config --get remote.upstream.url | sed -e 's/git@github.com://g' | sed -e 's/\.git//g'`
-  echo "Upstream: " $UPSTREAM_REPO
-  if [ -z "$UPSTREAM_REPO" ]; then
-    echo "Unable to get upstream origin url.
-    Set a remote upstream via:
-    'git remote add upstream git@github.com/username/repo.git'"
-    return 1
-  fi
-  git checkout main 
-  git branch -D pr_$NUMBAH
-  git fetch upstream pull/$NUMBAH/head:pr_$NUMBAH
-  git checkout pr_$NUMBAH
+  gh pr checkout $1
 }
 
 # long af
@@ -580,7 +561,7 @@ git-pr() {
 
   export TITLE="$(git --no-pager log -1 --format=%s)"
 
-  gh pr create --title "$TITLE" --body-file /tmp/pr.tmp -H $GH_USER:$BRANCH
+  gh pr create --title "$TITLE" --body-file /tmp/pr.tmp -H $GH_USER:$BRANCH -R $UPSTREAM_REPO
 }
 
 # Delete's all merged PR branches
@@ -594,44 +575,8 @@ git-last-worked() {
 }
 
 #####################
-# FUNCTIONS: DOCKER #
+# FUNCTIONS: PODMAN #
 #####################
-
-# removes all stoppped, dead, 'created' containers && dangling images
-docker-cleanup(){
-  docker rm $(docker ps --filter status=exited -q 2>/dev/null) 2>/dev/null
-  docker rm $(docker ps --filter status=created -q 2>/dev/null) 2>/dev/null
-  docker rm $(docker ps --filter status=dead -q 2>/dev/null) 2>/dev/null
-  docker rmi $(docker images --filter dangling=true -q 2>/dev/null) 2>/dev/null
-}
-
-# purges ALL images
-docker-purge(){
-  docker rmi $(docker images -q)
-}
-
-# if it relies on another container
-relies_on(){
-  local containers=$1
-
-  for container in $containers; do
-    local state=$(docker inspect --format "{{.State.Running}}" $container 2>/dev/null)
-
-    if [[ "$state" == "false" ]] || [[ "$state" == "" ]]; then
-      echo "$container is not running, starting it for you."
-      $container
-    fi
-  done
-}
-
-del_stopped(){
-  name=$1
-  state=$(docker inspect --format "{{.State.Running}}" $name 2>/dev/null)
-  if [[ "$state" == "false" ]]; then
-    docker rm $name
-  fi
-}
-
 
 jrl(){
   podman run -it --rm --network=none -v $SPATH/enc/txt.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
@@ -641,38 +586,25 @@ creds(){
   podman run -it --rm --network=none -v $SPATH/enc/creds.enc:/tmp/txt.enc -v /etc/localtime:/etc/localtime:ro cdrage/jrl
 }
 
-yubikey() {
-  del_stopped ykpersonalize
-  docker run --rm -it \
-    -v /etc/localtime:/etc/localtime:ro \
-    --device /dev/usb \
-    --name ykpersonalize \
-    jess/ykpersonalize bash
+#########################
+# FUNCTIONS: KUBERNETES #
+#########################
+
+k8s_del_terminating_namespace() {
+  echo "run kubectl proxy before"
+  NAMESPACE=$1
+  kubectl get namespace $NAMESPACE -o json |jq '.spec = {"finalizers":[]}' >temp.json
+  curl -k -H "Content-Type: application/json" -X PUT --data-binary @temp.json 127.0.0.1:8001/api/v1/namespaces/$NAMESPACE/finalize
+  rm temp.json
 }
 
-# Communication gateways / containers
-mutt(){
-  docker run -it --rm \
-    -e MUTT_NAME=$MUTT_NAME \
-    -e MUTT_EMAIL=$MUTT_EMAIL \
-    -e MUTT_PASS=$MUTT_PASS \
-    -e MUTT_PGP_KEY=$MUTT_PGP_KEY \
-    -v $HOME/.gnupg:/home/user/.gnupg \
-    -v $SPATH/etc/signature:/home/user/.mutt/signature \
-    -v $SPATH/etc/aliases:/home/user/.mutt/aliases \
-    -v /etc/localtime:/etc/localtime:ro \
-    cdrage/mutt-gmail
+####################
+# FUNCTIONS: MACOS #
+####################
+#
+remove_quarantine() {
+  xattr -d com.apple.quarantine $1
 }
-
-irc_twitch(){
-  del_stopped irc_twitch
-  docker run -it \
-    -v /etc/localtime:/etc/localtime:ro \
-    --name irc_twitch \
-    cdrage/weechat \
-    -r "/server add twitch irc.twitch.tv -password=$TWITCHOAUTH;/set irc.server.twitch.nicks '$TWITCHUSER';/connect twitch"
-}
-
 
 ###################
 # DOTFILES BACKUP #
@@ -680,7 +612,7 @@ irc_twitch(){
 
 backup() {
   shout "Backing up all dotfiles"
-  for file in ~/.{cli,extra,tmux.conf,zshrc}; do
+  for file in ~/.{cli,extra,zshrc}; do
     cp $file $SPATH/dev/linux/dotfiles/
   done
   cp -r ~/.config/nvim $SPATH/dev/linux/dotfiles/.config/
@@ -694,7 +626,7 @@ backup() {
 install_copy() {
   # Copy all of the files over first
 
-  cp -r .tmux.conf .cli .extra .zshrc ~/
+  cp -r .cli .extra .zshrc ~/
   shout "RESTART YOUR TERMINAL"
 
   shout "Run install_sudo after"
@@ -708,7 +640,6 @@ install_sudo() {
 install_essential() {
 	brew install neovim \
     git \
-    tmux \
     curl \
     python3 \
     node \
@@ -739,26 +670,10 @@ install_config_files() {
   cp -r $SPATH/etc/keys/ssh/* ~/.ssh/
   chmod 400 ~/.ssh/id_rsa ~/.ssh/id_rsa.pub
   ssh-add
-
-  # Tmux
-  git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
-}
-
-
-install_oc() {
-  RELEASE="https://github.com/openshift/okd/releases/download/4.10.0-0.okd-2022-03-07-131213/openshift-client-mac-4.10.0-0.okd-2022-03-07-131213.tar.gz"
-  echo ""
-  echo $RELEASE
-  echo ""
-  wget $RELEASE -O openshift.tar.gz
-  tar -xvf openshift.tar.gz
-  sudo mv oc /usr/local/bin/oc
-  rm openshift.tar.gz README.md kubectl
-  oc version
 }
 
 install_kompose() {
-  RELEASE=1.26.1
+  RELEASE=1.31.1
   echo ""
   echo $RELEASE
   echo ""
@@ -766,12 +681,4 @@ install_kompose() {
   sudo mv kompose /usr/local/bin/kompose
   sudo chmod +x /usr/local/bin/kompose
   kompose version
-}
-
-del_terminating_namespace() {
-  echo "run kubectl proxy before"
-  NAMESPACE=$1
-  kubectl get namespace $NAMESPACE -o json |jq '.spec = {"finalizers":[]}' >temp.json
-  curl -k -H "Content-Type: application/json" -X PUT --data-binary @temp.json 127.0.0.1:8001/api/v1/namespaces/$NAMESPACE/finalize
-  rm temp.json
 }
