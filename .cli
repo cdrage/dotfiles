@@ -28,7 +28,7 @@ export SPATH=$HOME/syncthing
 
 # Go location
 export GOPATH=$SPATH/dev/go
-
+export GOROOT="$(brew --prefix golang)/libexec"
 export PATH=$PATH:$GOPATH/bin
 
 ###############
@@ -311,7 +311,7 @@ git-lazy() {
     return 1
   fi
   git add .
-  git commit -m $1 -s
+  git commit -m $1 -s --no-verify
   git-push
 }
 
@@ -598,6 +598,11 @@ k8s_del_terminating_namespace() {
   rm temp.json
 }
 
+# Deletes ALL terminating pods / clear them. Useful for if a node goes down, etc.
+k8s_del_terminating_pods() {
+  for p in $(kubectl get pods | grep Terminating | awk '{print $1}'); do kubectl delete pod $p --grace-period=0 --force;done
+}
+
 ####################
 # FUNCTIONS: MACOS #
 ####################
@@ -673,7 +678,7 @@ install_config_files() {
 }
 
 install_kompose() {
-  RELEASE=1.31.1
+  RELEASE=1.34.0
   echo ""
   echo $RELEASE
   echo ""
@@ -681,4 +686,41 @@ install_kompose() {
   sudo mv kompose /usr/local/bin/kompose
   sudo chmod +x /usr/local/bin/kompose
   kompose version
+}
+
+
+##############
+# VM TESTING #
+##############
+
+
+# includes port forwarding 6443 (k8s), (22 to 22 for SSH), and 8080 to 80
+arm_raw_test() {
+  export DISK_IMAGE=disk.raw
+  sudo qemu-system-aarch64 \
+    -m 8G \
+    -M virt \
+    -accel hvf \
+    -cpu host \
+    -smp 4 \
+    -serial mon:stdio \
+    -nographic \
+    -nic vmnet-shared \
+    -netdev user,id=usernet,hostfwd=tcp::8080-:80,hostfwd=tcp::2222-:22,hostfwd=tcp::6443-:6443 \
+    -device virtio-net,netdev=usernet \
+    -drive file=/opt/homebrew/share/qemu/edk2-aarch64-code.fd,format=raw,if=pflash,readonly=on \
+    -drive file=$DISK_IMAGE,if=virtio,cache=writethrough,format=raw
+}
+
+# includes port forwarding 6443 (k8s), (22 to 22 for SSH), and 8080 to 80
+x86_raw_test() {
+  export DISK_IMAGE=disk.raw
+  sudo qemu-system-x86_64 \
+    -m 8G \
+    -cpu Broadwell-v4 \
+    -nographic \
+    -nic vmnet-shared \
+    -netdev user,id=usernet,hostfwd=tcp::8080-:80,hostfwd=tcp::2222-:22,hostfwd=tcp::6443-:6443 \
+    -device virtio-net,netdev=usernet \
+    -snapshot $DISK_IMAGE
 }

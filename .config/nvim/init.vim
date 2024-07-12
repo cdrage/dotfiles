@@ -237,6 +237,3 @@ endif
 " Markdown
 let g:vim_markdown_conceal_code_blocks = 0
 let g:vim_markdown_conceal = 0
-
-" Powerline
-let g:powerline_loaded = 1
