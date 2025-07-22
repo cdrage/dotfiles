@@ -66,7 +66,6 @@ abbr ~ "cd ~"
 abbr -- - "cd -"
 
 abbr g "git"
-abbr d "gogo"
 abbr k "kubectl"
 abbr p "pnpm"
 
@@ -96,7 +95,7 @@ abbr rsync-copy "rsync -avz --progress"
 #############
 
 function shout
-    echo -e "\n!!!!!!!!!!!!!!!!!!!!\n$argv\n!!!!!!!!!!!!!!!!!!!!\n"
+    printf "\n!!!!!!!!!!!!!!!!!!!!\n%s\n!!!!!!!!!!!!!!!!!!!!\n" "$argv"
 end
 
 function pass-gen-http
@@ -116,6 +115,7 @@ function sed-replace
         find $argv[3] -type f \( -name "*.*" ! -path "*/.git/*" ! -path "*/vendor/*" \) -print0 | xargs -0 sed -i "" "s/$argv[1]/$argv[2]/g"
     end
 end
+
 
 function ask
     set -l prompt ""
@@ -148,7 +148,11 @@ end
 
 function twitch
     set -l result $argv[1]
-    set -l quality (count $argv) -ge 2 ? $argv[2] : "high"
+    if test (count $argv) -ge 2
+        set quality $argv[2]
+    else
+        set quality high
+    end
     set -x QT_AUTO_SCREEN_SCALE_FACTOR 1
     set -x QT_SCALE_FACTOR 0.6
     streamlink --twitch-disable-ads twitch.tv/$result $quality
@@ -161,24 +165,6 @@ end
 function xkcd
     sort -R /usr/share/dict/words | head -n 4 | awk '{ sub(".", toupper(substr($0,1,1))); printf "%s", $0 }'
     echo
-end
-
-function gogo
-    if string match -q '*/'* $argv[1]
-        set -l devpath (find $SPATH/dev -maxdepth 3 -type d -path "*$argv[1]" | head -n1)
-        set -l gopath (find $GOPATH/src -maxdepth 5 -type d -path "*$argv[1]" | head -n1)
-    else
-        set -l devpath (find $SPATH/dev -maxdepth 3 -type d -iname "$argv[1]" | head -n1)
-        set -l gopath (find $GOPATH/src -maxdepth 5 -type d -iname "$argv[1]" | head -n1)
-    end
-    if test -n "$devpath"
-        cd $devpath
-    else if test -n "$gopath"
-        cd $gopath
-    else
-        echo "$argv[1] dir not found"
-        return 1
-    end
 end
 
 function worldtime
@@ -246,7 +232,7 @@ end
 function git-commit-template
     set FILE .github/PULL_REQUEST_TEMPLATE.md
     if test -f "$FILE"
-        set CONTENT (echo "ADD TITLE HERE\n" ; cat $FILE)
+        get-multiline-output "echo 'ADD TITLE HERE'; cat $FILE" | read -z -- CONTENT
         git commit --no-verify -m "$CONTENT"
         git commit --no-verify --amend -s
     else
@@ -255,7 +241,7 @@ function git-commit-template
 end
 
 function git-push
-    set BRANCH (git symbolic-ref --short HEAD ^/dev/null)
+    set BRANCH (git symbolic-ref --short HEAD)
     if test -z "$BRANCH"
         echo "Unable to get branch name, is this even a git repo?"
         return 1
@@ -273,14 +259,18 @@ function git-checkout
         echo "Must provide branch name"
         return 1
     end
-    set BASE (count $argv) -ge 2 ? $argv[2] : "main"
+    if test (count $argv) -ge 2
+        set BASE $argv[2]
+    else
+        set BASE main
+    end
     echo "Checking out from $BASE"
     git checkout $BASE
     git checkout -b $argv[1]
 end
 
 function git-update
-    set LAST_COMMIT_MSG (git show -s --format=%B -1 | cat)
+    get-multiline-output 'git show -s --format=%B -1' | read -z -- LAST_COMMIT_MSG
     git add .
     git commit --no-verify -m 'update'
     git reset --soft HEAD~2
@@ -315,18 +305,24 @@ function git-combine-commit
         echo "Supply the last N commit you want to combine :)"
         return 1
     end
-    set LAST_COMMIT_MSG (git show -s --format=%B -1 | cat)
+    get-multiline-output "git show -s --format=%B -1" | read -z -- LAST_COMMIT_MSG
     git reset --soft HEAD~$argv[1]
     git commit --no-verify -m "$LAST_COMMIT_MSG"
 end
 
 function git-sync-upstream
-    set MAIN (count $argv) -ge 1 ? $argv[1] : "main"
+    if test (count $argv) -ge 1
+        set MAIN $argv[1]
+    else
+        set MAIN main
+    end
+
     set UPSTREAM_REPO (git config --get remote.upstream.url | sed 's|.*github.com[:/]||' | sed 's/.git$//')
     if test -z "$UPSTREAM_REPO"
         echo "Set a remote upstream via: git remote add upstream git@github.com:username/repo.git"
         return 1
     end
+
     set BRANCH (git symbolic-ref --short HEAD)
     echo "\nSyncing $MAIN\n"
     git checkout $MAIN
@@ -336,6 +332,7 @@ function git-sync-upstream
     git checkout $BRANCH
     echo "\nSync completed\n"
 end
+
 
 function git-revert-file
     if test (count $argv) -ne 1
@@ -374,14 +371,35 @@ function git-pull-pr
 end
 
 function git-pr
-    set UPSTREAM_BRANCH (count $argv) -ge 1 ? $argv[1] : "main"
+    # pick upstream branch (default to main)
+    if test (count $argv) -ge 1
+        set UPSTREAM_BRANCH $argv[1]
+    else
+        set UPSTREAM_BRANCH main
+    end
+
+    # figure out your current branch and repos
     set BRANCH (git symbolic-ref --short HEAD)
     set ORIGIN_REPO (git config --get remote.origin.url | sed 's|git@github.com:||;s|.git$||')
     set UPSTREAM_REPO (git config --get remote.upstream.url | sed 's|git@github.com:||;s|.git$||')
-    set PR (git --no-pager log -1 --pretty=%s%n%n%b)
-    echo "$PR" > /tmp/pr.tmp
+
+    # dump the full subject + blank line + body (with real newlines) to the temp file
+    git --no-pager log -1 --pretty=format:'%s%n%n%b' > /tmp/pr.tmp
+
+    # grab just the title line
     set TITLE (git --no-pager log -1 --format=%s)
-    gh pr create --title "$TITLE" --body-file /tmp/pr.tmp -H $GH_USER:$BRANCH -R $UPSTREAM_REPO
+
+    # fall back on $USER if GH_USER isn’t set
+    if test -z "$GH_USER"
+        set -l GH_USER $USER
+    end
+
+    # create the PR
+    gh pr create \
+        --title "$TITLE" \
+        --body-file /tmp/pr.tmp \
+        -H $GH_USER:$BRANCH \
+        -R $UPSTREAM_REPO
 end
 
 function git-delete-merged
@@ -515,4 +533,17 @@ end
 
 function pd-main-watch
     npx vitest watch -r packages/main
+end
+
+
+#####################
+# Utility functions #
+#####################
+
+function get-multiline-output --argument cmd
+    set TMPFILE (mktemp)
+    eval $cmd > $TMPFILE
+    cat $TMPFILE | read -z -- result
+    rm $TMPFILE
+    echo -n $result
 end
