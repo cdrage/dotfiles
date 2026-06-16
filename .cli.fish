@@ -280,11 +280,48 @@ end
 function git-set-upstream-remote
     echo "Previous remote:"
     git remote -v
-    set NAME (basename (pwd))
-    set UPSTREAM_REPO (git config --get remote.origin.url | sed 's|.*github.com[:/]||' | sed 's/.git$//')
-    git remote remove origin
-    git remote add origin git@github.com:$GITHUB_USER/$NAME.git
-    git remote add upstream git@github.com:$UPSTREAM_REPO.git
+
+    set -l ORIGIN_URL (git config --get remote.origin.url)
+    if test -z "$ORIGIN_URL"
+        echo "No origin remote found"
+        return 1
+    end
+
+    set -l REMOTE_USER $GITHUB_USER
+    if test -z "$REMOTE_USER"
+        set REMOTE_USER (git config --global --get github.user)
+    end
+    if test -z "$REMOTE_USER"
+        set REMOTE_USER $USER
+    end
+    if test -z "$REMOTE_USER"
+        echo "Unable to determine remote username"
+        return 1
+    end
+
+    set -l REMOTE_PREFIX (printf '%s\n' "$ORIGIN_URL" | sed -E \
+        -e 's#^(git@[^:/]+:).*#\1#; t done' \
+        -e 's#^(ssh://[^@]+@[^/]+/).*#\1#; t done' \
+        -e 's#^(https?://[^/]+/).*#\1#; t done' \
+        -e ':done')
+    set -l UPSTREAM_REPO (printf '%s\n' "$ORIGIN_URL" | sed -E \
+        -e 's#\.git$##' \
+        -e 's#^git@[^:/]+:##' \
+        -e 's#^ssh://[^@]+@[^/]+/##' \
+        -e 's#^https?://[^/]+/##')
+    set -l NAME (basename "$UPSTREAM_REPO")
+
+    if test -z "$REMOTE_PREFIX" -o -z "$UPSTREAM_REPO" -o -z "$NAME"
+        echo "Unable to parse origin remote: $ORIGIN_URL"
+        return 1
+    end
+
+    if git remote get-url upstream >/dev/null 2>&1
+        git remote remove upstream
+    end
+
+    git remote rename origin upstream
+    git remote add origin $REMOTE_PREFIX$REMOTE_USER/$NAME.git
     git remote set-url --push upstream no_push
     echo "Remote git's set"
     git remote -v
@@ -399,6 +436,29 @@ function git-pr
         --title "$TITLE" \
         --body-file /tmp/pr.tmp \
         -H $GH_USER:$BRANCH \
+        -R $UPSTREAM_REPO
+end
+
+function git-pr-gl
+    if test (count $argv) -ge 1
+        set TARGET_BRANCH $argv[1]
+    else
+        set TARGET_BRANCH main
+    end
+
+    set BRANCH (git symbolic-ref --short HEAD)
+    set TITLE (git --no-pager log -1 --format=%s)
+    set ORIGIN_REPO (git config --get remote.origin.url | sed 's|.*gitlab[^:/]*[:/]||' | sed 's/.git$//')
+    set UPSTREAM_REPO (git config --get remote.upstream.url | sed 's|.*gitlab[^:/]*[:/]||' | sed 's/.git$//')
+
+    git --no-pager log -1 --pretty=format:'%s%n%n%b' > /tmp/pr.tmp
+
+    glab mr create \
+        --title "$TITLE" \
+        --description "$(cat /tmp/pr.tmp)" \
+        --source-branch $BRANCH \
+        --target-branch $TARGET_BRANCH \
+        -H $ORIGIN_REPO \
         -R $UPSTREAM_REPO
 end
 
